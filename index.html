@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Fari Si Dukun Tanaman</title>
+    <meta name="description" content="Sistem IoT berbasis ESP32 dan Machine Learning untuk pemanenan air hujan otomatis dan rekomendasi tanaman terbaik.">
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Modular CSS per Bagian & Halaman -->
+    <link rel="stylesheet" href="css/global.css?v=3">
+    <link rel="stylesheet" href="css/page-home.css?v=3">
+    <link rel="stylesheet" href="css/page-telemetri.css?v=3">
+    <link rel="stylesheet" href="css/page-temphumid.css?v=3">
+    <link rel="stylesheet" href="css/page-phwater.css?v=3">
+    <link rel="stylesheet" href="css/page-history.css?v=3">
+</head>
+<body>
+
+<!-- Animated Background: Center Breath Blob + Bottom Aurora Glows -->
+<div class="gradient-canvas">
+    <div class="center-breath-blob"></div>
+    <div class="aurora-glow aurora-bottom-left"></div>
+    <div class="aurora-glow aurora-bottom-right"></div>
+</div>
+
+<!-- Sidebar Overlay -->
+<div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<!-- Left White Theme Sidebar -->
+<aside id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-logo" onclick="navigate('home')">
+            <div class="sidebar-logo-icon">
+                <i data-lucide="sprout"></i>
+            </div>
+            <div>
+                <span class="sidebar-logo-name">Fari</span>
+                <span class="sidebar-logo-sub">Si Dukun Tanaman</span>
+            </div>
+        </div>
+        <button class="sidebar-close-btn" onclick="closeSidebar()" aria-label="Tutup Menu">
+            <i data-lucide="x"></i>
+        </button>
+    </div>
+
+    <div class="sidebar-section-label">NAVIGASI HALAMAN</div>
+    <nav class="sidebar-nav">
+        <!-- Default Dashboard: ML & Aktuator -->
+        <a class="sidebar-item active" onclick="navigate('home')" id="nav-home">
+            <div class="sidebar-item-icon homeicon">
+                <i data-lucide="layout-dashboard"></i>
+            </div>
+            <div class="sidebar-item-text">
+                <span class="sidebar-item-title">Dashboard Utama</span>
+                <span class="sidebar-item-sub">Prediksi ML &amp; Kontrol Aktuator</span>
+            </div>
+        </a>
+
+        <!-- Halaman Telemetri Sensor Real Time -->
+        <a class="sidebar-item" onclick="navigate('telemetri')" id="nav-telemetri">
+            <div class="sidebar-item-icon realtime">
+                <i data-lucide="activity"></i>
+            </div>
+            <div class="sidebar-item-text">
+                <span class="sidebar-item-title">Telemetri Real-Time</span>
+                <span class="sidebar-item-sub">Monitoring 5 sensor IoT lapangan</span>
+            </div>
+        </a>
+
+        <!-- Halaman Suhu & Kelembapan -->
+        <a class="sidebar-item" onclick="navigate('temphumid')" id="nav-temphumid">
+            <div class="sidebar-item-icon temphumid">
+                <i data-lucide="thermometer"></i>
+            </div>
+            <div class="sidebar-item-text">
+                <span class="sidebar-item-title">Suhu &amp; Kelembapan</span>
+                <span class="sidebar-item-sub">DHT22 — Monitoring iklim mikro</span>
+            </div>
+        </a>
+
+        <!-- Halaman pH Tanah & Reservoir -->
+        <a class="sidebar-item" onclick="navigate('phwater')" id="nav-phwater">
+            <div class="sidebar-item-icon phwater">
+                <i data-lucide="flask-conical"></i>
+            </div>
+            <div class="sidebar-item-text">
+                <span class="sidebar-item-title">pH Tanah &amp; Reservoir</span>
+                <span class="sidebar-item-sub">Elektroda pH &amp; HC-SR04</span>
+            </div>
+        </a>
+
+        <!-- Halaman Log Riwayat Telemetri -->
+        <a class="sidebar-item" onclick="navigate('history')" id="nav-history">
+            <div class="sidebar-item-icon historyicon">
+                <i data-lucide="scroll-text"></i>
+            </div>
+            <div class="sidebar-item-text">
+                <span class="sidebar-item-title">Log Riwayat Telemetri</span>
+                <span class="sidebar-item-sub">Tabel 10 rekam jejak sensor</span>
+            </div>
+        </a>
+    </nav>
+
+    <div class="sidebar-section-label mt-4">STATUS SISTEM</div>
+    <div class="sidebar-status">
+        <div class="sidebar-status-row">
+            <div class="status-indicator">
+                <span class="status-ping"></span>
+                <span class="status-dot"></span>
+            </div>
+            <span class="sidebar-status-label">ESP32 Connected</span>
+        </div>
+        <div class="sidebar-status-row">
+            <div class="glow-dot sm"></div>
+            <span class="sidebar-status-label">ML Engine Active</span>
+        </div>
+    </div>
+
+    <div class="sidebar-footer">
+        <span class="sidebar-footer-text">Fari Smart Farming v2.0</span>
+        <span class="sidebar-footer-sub">IoT ESP32 · ML Engine</span>
+    </div>
+</aside>
+
+<!-- Main App Wrapper that smoothly shifts to the right when sidebar is open -->
+<div id="app-wrapper" class="app-wrapper">
+
+    <!-- Topbar Navigation -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <button id="sidebar-toggle-btn" class="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="Toggle Menu Sidebar" title="Buka Menu Navigasi">
+                <i data-lucide="menu"></i>
+            </button>
+            <div class="topbar-title-area">
+                <span id="page-title" class="topbar-page-title">Dashboard Fari Si Dukun Tanaman</span>
+                <span id="page-subtitle" class="topbar-page-sub">Prediksi Machine Learning &amp; Kontrol Aktuator</span>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <div class="topbar-chip">
+                <div class="status-indicator">
+                    <span class="status-ping"></span>
+                    <span class="status-dot"></span>
+                </div>
+                <span class="topbar-chip-text">ESP32</span>
+            </div>
+            <div class="topbar-chip">
+                <i data-lucide="clock" class="topbar-chip-icon"></i>
+                <span id="realtime-clock" class="topbar-clock">00:00:00</span>
+                <span class="topbar-clock-wib">WIB</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Sliding Viewport -->
+    <main class="viewport-container">
+        <div id="pages-track" class="pages-track">
+
+            <!-- ==============================================
+                 SLIDE 0: DEFAULT DASHBOARD (ML + AKTUATOR)
+                 ============================================== -->
+            <section id="page-home" class="page-slide active-slide">
+                <div class="slide-inner">
+                    <!-- Hero Header -->
+                    <div class="hero-header">
+                        <div class="hero-tag">
+                            <div class="glow-dot xs"></div>
+                            <span>Smart Agriculture IoT &amp; Machine Learning</span>
+                        </div>
+                        <h1 class="hero-title">Dashboard Fari <span class="hero-highlight">Si Dukun Tanaman</span></h1>
+                        <p class="hero-sub">Sistem IoT berbasis ESP32 dan Machine Learning untuk pemanenan air hujan otomatis dan rekomendasi tanaman terbaik.</p>
+                    </div>
+
+                    <div class="page-section-bar">
+                        <h2 class="section-title">
+                            <i data-lucide="sparkles"></i>
+                            Prediksi ML &amp; Kontrol Aktuator
+                        </h2>
+                        <div class="countdown-chip">
+                            <div class="glow-dot xs"></div>
+                            <span id="countdown-text" class="countdown-text">Pembaruan: 30:00</span>
+                        </div>
+                    </div>
+
+                    <div class="two-col-grid">
+                        <!-- Machine Learning Prediction Panel -->
+                        <div class="panel-nature">
+                            <div class="panel-header">
+                                <div class="panel-header-left">
+                                    <div class="panel-icon-box">
+                                        <i data-lucide="brain"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="panel-title">Prediksi Machine Learning</h3>
+                                        <p class="panel-sub">Klasifikasi Kesesuaian Lahan Tanam</p>
+                                    </div>
+                                </div>
+                                <span id="ml-status-badge" class="badge badge-green">
+                                    <i data-lucide="check-circle-2"></i>
+                                    <span id="ml-status-text">Sangat Layak</span>
+                                </span>
+                            </div>
+
+                            <div class="ml-rec-box">
+                                <div class="ml-rec-left">
+                                    <span class="ml-rec-label">Rekomendasi Tanaman Terbaik</span>
+                                    <h4 id="ml-crop-name" class="ml-crop-name">Cabai Merah (Capsicum Annuum)</h4>
+                                </div>
+                                <div class="ml-rec-right">
+                                    <span class="ml-rec-label">Akurasi Model</span>
+                                    <div class="ml-accuracy-row">
+                                        <span id="ml-accuracy" class="ml-accuracy-val">90.9</span>
+                                        <span class="ml-accuracy-unit">%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="progress-track ml-accuracy-progress">
+                                <div id="ml-accuracy-bar" class="progress-fill ph"></div>
+                            </div>
+
+                            <div class="ml-reason-wrap">
+                                <div class="ml-reason-header">
+                                    <i data-lucide="message-square-text"></i>
+                                    <span class="ml-reason-label">Analisis &amp; Alasan</span>
+                                </div>
+                                <p id="ml-reason" class="ml-reason-text">Suhu dan pasokan air moderat ideal untuk perkembangan bunga &amp; pembentukan buah Cabai.</p>
+                            </div>
+
+                            <div class="ml-alt-wrap">
+                                <span class="ml-alt-label">Alternatif Tanaman:</span>
+                                <div id="ml-alternatives" class="ml-alt-chips">
+                                    <span class="badge badge-gray">Tomat (85%)</span>
+                                    <span class="badge badge-gray">Terong (80%)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Actuator Control Panel -->
+                        <div class="card p-7 flex-col-card">
+                            <div class="panel-header actuator-panel-header">
+                                <div class="panel-header-left">
+                                    <div class="panel-icon-box">
+                                        <i data-lucide="settings-2"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="panel-title">Kontrol Aktuator</h3>
+                                        <p class="panel-sub">Otomasi &amp; Pemanenan Air</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mode-toggle-row">
+                                <div>
+                                    <span class="mode-toggle-title">Mode Kendali</span>
+                                    <span id="mode-desc" class="mode-toggle-sub">Otomatis oleh ESP32</span>
+                                </div>
+                                <div id="btn-toggle-mode" class="toggle-track on" onclick="toggleControlMode()">
+                                    <div id="toggle-circle" class="toggle-knob"></div>
+                                </div>
+                            </div>
+
+                            <!-- Servo Gate -->
+                            <div class="actuator-card">
+                                <div class="actuator-header">
+                                    <div class="actuator-icon rain">
+                                        <i data-lucide="git-fork"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="actuator-title">Servo Gerbang Parit</h4>
+                                        <p class="actuator-sub">Pemanenan Air Hujan</p>
+                                    </div>
+                                    <span id="servo-badge" class="badge badge-green">TERBUKA</span>
+                                </div>
+                                <div class="actuator-footer">
+                                    <span class="actuator-info">Sudut: <strong id="servo-angle-text">90&deg; (Tampung)</strong></span>
+                                    <button id="btn-servo-manual" onclick="toggleManualActuator('servo')" disabled class="btn-actuator disabled">Toggle</button>
+                                </div>
+                            </div>
+
+                            <!-- Irrigation Pump -->
+                            <div class="actuator-card">
+                                <div class="actuator-header">
+                                    <div class="actuator-icon ph">
+                                        <i data-lucide="power"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="actuator-title">Pompa Irigasi</h4>
+                                        <p class="actuator-sub">Relay Module</p>
+                                    </div>
+                                    <span id="pump-badge" class="badge badge-gray">NON-AKTIF</span>
+                                </div>
+                                <div class="actuator-footer">
+                                    <span class="actuator-info">Debit: <strong id="pump-flow-text" class="actuator-flow-text">0 L/menit</strong></span>
+                                    <button id="btn-pump-manual" onclick="toggleManualActuator('pump')" disabled class="btn-actuator disabled">Toggle</button>
+                                </div>
+                            </div>
+
+                            <div class="actuator-footer-bar">
+                                <span class="actuator-interlock">
+                                    <i data-lucide="shield-check"></i>
+                                    Interlock Active
+                                </span>
+                                <span id="last-actuator-update" class="actuator-timestamp">&mdash;</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==============================================
+                 SLIDE 1: HALAMAN TELEMETRI SENSOR REAL TIME
+                 ============================================== -->
+            <section id="page-telemetri" class="page-slide">
+                <div class="slide-inner">
+                    <div class="page-section-bar">
+                        <h2 class="section-title">
+                            <i data-lucide="activity"></i>
+                            Telemetri Sensor Real-Time
+                        </h2>
+                        <div class="countdown-chip">
+                            <div class="glow-dot xs"></div>
+                            <span class="countdown-text">Live 5 Sensor IoT</span>
+                        </div>
+                    </div>
+
+                    <!-- 5 Sensors Grid -->
+                    <div class="sensor-grid">
+                        <div class="card p-5">
+                            <div class="sensor-card-header">
+                                <span class="sensor-label">Suhu Udara</span>
+                                <div class="sensor-icon-box temp">
+                                    <i data-lucide="thermometer"></i>
+                                </div>
+                            </div>
+                            <div class="sensor-value-row">
+                                <span id="val-temp" class="sensor-value">28.5</span>
+                                <span class="sensor-unit">&deg;C</span>
+                            </div>
+                            <div class="sensor-footer">
+                                <span class="sensor-source">DHT22</span>
+                                <span id="status-temp-badge" class="badge badge-green">Optimal</span>
+                            </div>
+                            <div class="progress-track mt-3">
+                                <div id="bar-temp" class="progress-fill temp"></div>
+                            </div>
+                        </div>
+
+                        <div class="card p-5">
+                            <div class="sensor-card-header">
+                                <span class="sensor-label">Kelembapan</span>
+                                <div class="sensor-icon-box humid">
+                                    <i data-lucide="droplets"></i>
+                                </div>
+                            </div>
+                            <div class="sensor-value-row">
+                                <span id="val-humidity" class="sensor-value">72</span>
+                                <span class="sensor-unit">%</span>
+                            </div>
+                            <div class="sensor-footer">
+                                <span class="sensor-source">DHT22</span>
+                                <span id="status-humidity-badge" class="badge badge-blue">Lembap</span>
+                            </div>
+                            <div class="progress-track mt-3">
+                                <div id="bar-humidity" class="progress-fill humid"></div>
+                            </div>
+                        </div>
+
+                        <div class="card p-5">
+                            <div class="sensor-card-header">
+                                <span class="sensor-label">pH Tanah</span>
+                                <div class="sensor-icon-box ph">
+                                    <i data-lucide="flask-conical"></i>
+                                </div>
+                            </div>
+                            <div class="sensor-value-row">
+                                <span id="val-ph" class="sensor-value">6.5</span>
+                                <span class="sensor-unit">pH</span>
+                            </div>
+                            <div class="sensor-footer">
+                                <span class="sensor-source">Electro Probe</span>
+                                <span id="status-ph-badge" class="badge badge-green">Netral</span>
+                            </div>
+                            <div class="progress-track mt-3">
+                                <div id="bar-ph" class="progress-fill ph"></div>
+                            </div>
+                        </div>
+
+                        <div class="card p-5">
+                            <div class="sensor-card-header">
+                                <span class="sensor-label">Curah Hujan</span>
+                                <div class="sensor-icon-box rain">
+                                    <i data-lucide="cloud-rain"></i>
+                                </div>
+                            </div>
+                            <div class="sensor-value-row">
+                                <span id="val-rain" class="sensor-value">45</span>
+                                <span class="sensor-unit">%</span>
+                            </div>
+                            <div class="sensor-footer">
+                                <span class="sensor-source">Raindrop</span>
+                                <span id="status-rain-badge" class="badge badge-blue">Gerimis</span>
+                            </div>
+                            <div class="progress-track mt-3">
+                                <div id="bar-rain" class="progress-fill rain"></div>
+                            </div>
+                        </div>
+
+                        <div class="card p-5">
+                            <div class="sensor-card-header">
+                                <span class="sensor-label">Reservoir</span>
+                                <div class="sensor-icon-box water">
+                                    <i data-lucide="waves"></i>
+                                </div>
+                            </div>
+                            <div class="sensor-value-row">
+                                <span id="val-reservoir" class="sensor-value">68</span>
+                                <span class="sensor-unit">%</span>
+                            </div>
+                            <div class="sensor-footer">
+                                <span class="sensor-source">HC-SR04</span>
+                                <span id="status-reservoir-badge" class="badge badge-green">Aman</span>
+                            </div>
+                            <div class="progress-track mt-3">
+                                <div id="bar-reservoir" class="progress-fill water"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2 Live Charts Grid -->
+                    <div class="two-col-grid">
+                        <div class="card p-6">
+                            <div class="chart-header">
+                                <div class="chart-header-left">
+                                    <div class="sensor-icon-box temp chart-header-icon">
+                                        <i data-lucide="line-chart"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="chart-title">Suhu &amp; Kelembapan</h3>
+                                        <p class="chart-sub">10 pembacaan terakhir</p>
+                                    </div>
+                                </div>
+                                <div class="chart-legend">
+                                    <span class="legend-item legend-temp"><span class="legend-dot"></span>Suhu</span>
+                                    <span class="legend-item legend-humid"><span class="legend-dot"></span>RH%</span>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper"><canvas id="chartTempHum"></canvas></div>
+                        </div>
+
+                        <div class="card p-6">
+                            <div class="chart-header">
+                                <div class="chart-header-left">
+                                    <div class="sensor-icon-box ph chart-header-icon">
+                                        <i data-lucide="trending-up"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="chart-title">pH Tanah &amp; Reservoir</h3>
+                                        <p class="chart-sub">10 pembacaan terakhir</p>
+                                    </div>
+                                </div>
+                                <div class="chart-legend">
+                                    <span class="legend-item legend-ph"><span class="legend-dot"></span>pH</span>
+                                    <span class="legend-item legend-water"><span class="legend-dot"></span>Level%</span>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper"><canvas id="chartPhWater"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==============================================
+                 SLIDE 2: HALAMAN SUHU & KELEMBAPAN
+                 ============================================== -->
+            <section id="page-temphumid" class="page-slide">
+                <div class="slide-inner">
+                    <div class="page-section-bar">
+                        <h2 class="section-title">
+                            <i data-lucide="thermometer"></i>
+                            Suhu &amp; Kelembapan
+                        </h2>
+                        <span class="badge badge-blue">DHT22 Sensor</span>
+                    </div>
+
+                    <!-- Chart full-width di atas -->
+                    <div class="card p-6 detail-chart-card detail-chart-wide">
+                        <div class="chart-header">
+                            <div class="chart-header-left">
+                                <div class="sensor-icon-box temp chart-header-icon">
+                                    <i data-lucide="line-chart"></i>
+                                </div>
+                                <div>
+                                    <h3 class="chart-title">Grafik Detail Suhu &amp; Kelembapan</h3>
+                                    <p class="chart-sub">Riwayat 10 pembacaan iklim mikro</p>
+                                </div>
+                            </div>
+                            <div class="chart-legend">
+                                <span class="legend-item legend-temp"><span class="legend-dot"></span>Suhu (&deg;C)</span>
+                                <span class="legend-item legend-humid"><span class="legend-dot"></span>RH (%)</span>
+                            </div>
+                        </div>
+                        <div class="chart-wrapper detail-chart-wrapper"><canvas id="chartTempHumDetail"></canvas></div>
+                    </div>
+
+                    <!-- Stat cards horizontal di bawah chart -->
+                    <div class="detail-stats-row">
+                        <div class="card big-stat-card">
+                            <div class="big-stat-icon temp-bg">
+                                <i data-lucide="thermometer"></i>
+                            </div>
+                            <div class="big-stat-label">Suhu Udara Saat Ini</div>
+                            <div class="big-stat-value-row">
+                                <span id="th-val-temp" class="big-stat-value">28.5</span>
+                                <span class="big-stat-unit">&deg;C</span>
+                            </div>
+                            <span id="th-status-temp" class="badge badge-green">Optimal (24-32&deg;C)</span>
+                            <div class="progress-track big-stat-progress">
+                                <div id="th-bar-temp" class="progress-fill temp"></div>
+                            </div>
+                            <div class="big-stat-range"><span>Min: 24&deg;C</span><span>Max: 34&deg;C</span></div>
+                        </div>
+
+                        <div class="card big-stat-card">
+                            <div class="big-stat-icon humid-bg">
+                                <i data-lucide="droplets"></i>
+                            </div>
+                            <div class="big-stat-label">Kelembapan Relatif</div>
+                            <div class="big-stat-value-row">
+                                <span id="th-val-humidity" class="big-stat-value">72</span>
+                                <span class="big-stat-unit">%</span>
+                            </div>
+                            <span id="th-status-humidity" class="badge badge-blue">Lembap (&gt;65%)</span>
+                            <div class="progress-track big-stat-progress">
+                                <div id="th-bar-humidity" class="progress-fill humid"></div>
+                            </div>
+                            <div class="big-stat-range"><span>Min: 50%</span><span>Max: 90%</span></div>
+                        </div>
+                    </div>
+
+                    <div class="three-col-grid">
+                        <div class="card insight-card">
+                            <i data-lucide="sun" class="insight-icon sun"></i>
+                            <h4 class="insight-title">Suhu Optimal</h4>
+                            <p class="insight-text">Rentang ideal: <strong>24-30&deg;C</strong>. Saat ini <strong id="th-insight-temp">28.5&deg;C</strong> zona aman.</p>
+                        </div>
+                        <div class="card insight-card">
+                            <i data-lucide="wind" class="insight-icon wind"></i>
+                            <h4 class="insight-title">Kelembapan Udara</h4>
+                            <p class="insight-text">Kelembapan <strong id="th-insight-humidity">72%</strong> mendukung transpirasi tanaman.</p>
+                        </div>
+                        <div class="card insight-card">
+                            <i data-lucide="cloud" class="insight-icon cloud"></i>
+                            <h4 class="insight-title">Indeks Kenyamanan</h4>
+                            <p class="insight-text">Kondisi mikro iklim: <strong id="th-hhi">Baik</strong>. Pertumbuhan vegetatif optimal.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==============================================
+                 SLIDE 3: HALAMAN pH TANAH & RESERVOIR
+                 ============================================== -->
+            <section id="page-phwater" class="page-slide">
+                <div class="slide-inner">
+                    <div class="page-section-bar">
+                        <h2 class="section-title">
+                            <i data-lucide="flask-conical"></i>
+                            pH Tanah &amp; Reservoir
+                        </h2>
+                        <span class="badge badge-green">Elektroda &amp; HC-SR04</span>
+                    </div>
+
+                    <!-- Chart full-width di atas -->
+                    <div class="card p-6 detail-chart-card detail-chart-wide">
+                        <div class="chart-header">
+                            <div class="chart-header-left">
+                                <div class="sensor-icon-box ph chart-header-icon">
+                                    <i data-lucide="trending-up"></i>
+                                </div>
+                                <div>
+                                    <h3 class="chart-title">Grafik pH Tanah &amp; Level Reservoir</h3>
+                                    <p class="chart-sub">Riwayat 10 pembacaan nutrisi dan penampungan</p>
+                                </div>
+                            </div>
+                            <div class="chart-legend">
+                                <span class="legend-item legend-ph"><span class="legend-dot"></span>pH</span>
+                                <span class="legend-item legend-water"><span class="legend-dot"></span>Level (%)</span>
+                            </div>
+                        </div>
+                        <div class="chart-wrapper detail-chart-wrapper"><canvas id="chartPhWaterDetail"></canvas></div>
+                    </div>
+
+                    <!-- Stat cards horizontal di bawah chart -->
+                    <div class="detail-stats-row">
+                        <div class="card big-stat-card">
+                            <div class="big-stat-icon ph-bg">
+                                <i data-lucide="flask-conical"></i>
+                            </div>
+                            <div class="big-stat-label">pH Tanah Saat Ini</div>
+                            <div class="big-stat-value-row">
+                                <span id="pw-val-ph" class="big-stat-value">6.5</span>
+                                <span class="big-stat-unit">pH</span>
+                            </div>
+                            <span id="pw-status-ph" class="badge badge-green">Netral (6.0-7.0)</span>
+                            <div class="progress-track big-stat-progress">
+                                <div id="pw-bar-ph" class="progress-fill ph"></div>
+                            </div>
+                            <div class="big-stat-range"><span>Asam: &lt;5.5</span><span>Basa: &gt;7.5</span></div>
+                        </div>
+
+                        <div class="card big-stat-card">
+                            <div class="big-stat-icon water-bg">
+                                <i data-lucide="waves"></i>
+                            </div>
+                            <div class="big-stat-label">Level Reservoir</div>
+                            <div class="big-stat-value-row">
+                                <span id="pw-val-reservoir" class="big-stat-value">68</span>
+                                <span class="big-stat-unit">%</span>
+                            </div>
+                            <span id="pw-status-reservoir" class="badge badge-green">Aman (&gt;30%)</span>
+                            <div class="progress-track big-stat-progress">
+                                <div id="pw-bar-reservoir" class="progress-fill water"></div>
+                            </div>
+                            <div class="big-stat-range"><span>Kritis: &lt;20%</span><span>Penuh: 100%</span></div>
+                        </div>
+                    </div>
+
+                    <div class="three-col-grid">
+                        <div class="card insight-card acid">
+                            <i data-lucide="flask-conical" class="insight-icon"></i>
+                            <h4 class="insight-title">pH Asam (&lt;6.0)</h4>
+                            <p class="insight-text">Bila masam, tambahkan <strong>dolomit</strong> untuk menaikkan pH ke zona optimal.</p>
+                        </div>
+                        <div class="card insight-card neutral">
+                            <i data-lucide="check-circle" class="insight-icon"></i>
+                            <h4 class="insight-title">pH Netral (6.0-7.0)</h4>
+                            <p class="insight-text">pH <strong id="pw-insight-ph">6.5</strong> sangat baik untuk Padi, Jagung, Cabai.</p>
+                        </div>
+                        <div class="card insight-card reservoir">
+                            <i data-lucide="droplets" class="insight-icon"></i>
+                            <h4 class="insight-title">Reservoir <span id="pw-insight-res">68%</span></h4>
+                            <p class="insight-text">Cadangan air memadai. Irigasi siap otomatis saat dibutuhkan.</p>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- ==============================================
+                 SLIDE 4: HALAMAN LOG RIWAYAT TELEMETRI
+                 ============================================== -->
+            <section id="page-history" class="page-slide">
+                <div class="slide-inner">
+                    <div class="page-section-bar">
+                        <h2 class="section-title">
+                            <i data-lucide="scroll-text"></i>
+                            Log Riwayat Telemetri
+                        </h2>
+                        <div class="countdown-chip">
+                            <div class="glow-dot xs"></div>
+                            <span class="countdown-text">Maks. 10 per Halaman</span>
+                        </div>
+                    </div>
+
+                    <!-- Focused Table Card Only -->
+                    <div class="card history-card">
+                        <div class="panel-header history-panel-header">
+                            <div class="panel-header-left">
+                                <div class="panel-icon-box history-icon-box">
+                                    <i data-lucide="scroll-text"></i>
+                                </div>
+                                <div>
+                                    <h3 class="panel-title">Tabel Riwayat Lengkap</h3>
+                                    <p class="panel-sub">Rekam Jejak Pembacaan Sensor &amp; Kontrol ESP32</p>
+                                </div>
+                            </div>
+                            <div class="badge badge-amber">
+                                <i data-lucide="radio"></i>
+                                <span>Live Stream</span>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Waktu</th>
+                                        <th>Suhu / RH</th>
+                                        <th>pH</th>
+                                        <th>Rain / Reservoir</th>
+                                        <th>Servo</th>
+                                        <th>Pompa</th>
+                                        <th>ML Rekomendasi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="history-table-body">
+                                    <!-- Dynamic rows from script.js -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination Bar -->
+                        <div class="pagination-bar">
+                            <div class="pagination-info" id="pagination-info">Menampilkan 0 dari 0 data</div>
+                            <div class="pagination-buttons">
+                                <button id="btn-prev-page" class="btn-page" onclick="prevHistoryPage()" disabled>
+                                    &larr; Sebelumnya
+                                </button>
+                                <span id="pagination-current" class="pagination-badge">1</span>
+                                <button id="btn-next-page" class="btn-page" onclick="nextHistoryPage()" disabled>
+                                    Berikutnya &rarr;
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <div class="footer-left">
+                <i data-lucide="sprout" class="footer-icon"></i>
+                <span>&copy; 2026 Dashboard Fari Si Dukun Tanaman &mdash; IoT ESP32 &amp; Machine Learning</span>
+            </div>
+            <span class="footer-right">Chart.js &middot; Lucide Icons</span>
+        </div>
+    </footer>
+
+</div>
+
+<script src="script.js?v=17"></script>
+</body>
+</html>

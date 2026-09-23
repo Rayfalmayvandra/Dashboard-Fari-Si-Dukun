@@ -1,0 +1,11 @@
+/* ==========================================================================
+   DASHBOARD FARI SI DUKUN TANAMAN v2.0 — MASTER STYLESHEET
+   Modular CSS Architecture: Global & Per-Page Separation
+   ========================================================================== */
+
+@import './css/global.css';
+@import './css/page-home.css';
+@import './css/page-telemetri.css';
+@import './css/page-temphumid.css';
+@import './css/page-phwater.css';
+@import './css/page-history.css';
