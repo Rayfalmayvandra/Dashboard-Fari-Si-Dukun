@@ -1,0 +1,48 @@
+/* ==========================================================================
+   PAGE 3: pH TANAH & RESERVOIR AIR
+   Soil pH Electro Probe, Ultrasonic Water Level HC-SR04, Agronomy Insights
+   ========================================================================== */
+
+/* Insight Card Variants for pH & Reservoir */
+.insight-card.acid {
+    border-color: #ffcdd2;
+    background: #fffafa;
+}
+
+.insight-card.acid .insight-icon {
+    color: #e53935;
+}
+
+.insight-card.neutral {
+    border-color: var(--sage-200);
+    background: var(--sage-50);
+}
+
+.insight-card.neutral .insight-icon {
+    color: var(--sage-700);
+}
+
+.insight-card.reservoir {
+    border-color: #b2dfdb;
+    background: #f4fbfb;
+}
+
+.insight-card.reservoir .insight-icon {
+    color: #00897b;
+}
+
+.phwater-legend-ph {
+    color: #43a047;
+}
+
+.phwater-legend-ph .legend-dot {
+    background: #43a047;
+}
+
+.phwater-legend-res {
+    color: #00897b;
+}
+
+.phwater-legend-res .legend-dot {
+    background: #00897b;
+}
