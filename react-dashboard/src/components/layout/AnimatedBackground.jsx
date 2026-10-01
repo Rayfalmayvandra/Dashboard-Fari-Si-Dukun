@@ -1,4 +1,5 @@
 // ── AnimatedBackground ──────────────────────
+// DISEDIAKAN OLEH PANITIA LOMBA
 // Center breathing blob + bottom aurora glows
 
 export default function AnimatedBackground() {

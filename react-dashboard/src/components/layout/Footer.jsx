@@ -1,4 +1,5 @@
 // ── Footer ──────────────────────────────
+// DISEDIAKAN OLEH PANITIA LOMBA
 // Site footer with credits
 
 import { Sprout } from 'lucide-react';

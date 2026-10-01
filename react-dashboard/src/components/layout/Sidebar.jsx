@@ -1,12 +1,13 @@
 // ── Sidebar ──────────────────────────────
+// DISEDIAKAN OLEH PANITIA LOMBA
 // Left navigation sidebar with page links and system status
 
 import {
   Sprout, X, LayoutDashboard, Activity,
   Thermometer, FlaskConical, ScrollText,
-  ShieldCheck,
 } from 'lucide-react';
-import { PAGES } from '../utils/constants';
+import { PAGES } from '../../utils/constants';
+import { StatusIndicator } from '../ui';
 
 const NAV_ICONS = {
   home: LayoutDashboard,
@@ -75,14 +76,11 @@ export default function Sidebar({ currentPage, navigate, closeSidebar }) {
         <div className="sidebar-section-label mt-4">STATUS SISTEM</div>
         <div className="sidebar-status">
           <div className="sidebar-status-row">
-            <div className="status-indicator">
-              <span className="status-ping"></span>
-              <span className="status-dot"></span>
-            </div>
+            <StatusIndicator variant="ping" />
             <span className="sidebar-status-label">ESP32 Connected</span>
           </div>
           <div className="sidebar-status-row">
-            <div className="glow-dot sm"></div>
+            <StatusIndicator variant="glow" size="sm" />
             <span className="sidebar-status-label">ML Engine Active</span>
           </div>
         </div>

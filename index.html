@@ -3,739 +3,1388 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Fari Si Dukun Tanaman</title>
-    <meta name="description" content="Sistem IoT berbasis ESP32 dan Machine Learning untuk pemanenan air hujan otomatis dan rekomendasi tanaman terbaik.">
-    
+    <title>Monitoring Kelembapan Tanah (Soil Moisture) - ESP32 Realtime</title>
+    <meta name="description" content="Dashboard monitoring sensor kelembapan tanah realtime via ESP32 WiFi HTTP Fetch">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
     <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    
-    <!-- Modular CSS per Bagian & Halaman -->
-    <link rel="stylesheet" href="css/global.css?v=3">
-    <link rel="stylesheet" href="css/page-home.css?v=3">
-    <link rel="stylesheet" href="css/page-telemetri.css?v=3">
-    <link rel="stylesheet" href="css/page-temphumid.css?v=3">
-    <link rel="stylesheet" href="css/page-phwater.css?v=3">
-    <link rel="stylesheet" href="css/page-history.css?v=3">
+
+    <style>
+        /* ══════════════════════════════════════════════════════════════
+           DESIGN SYSTEM & CSS VARIABLES (Aesthetic Sage Nature Palette)
+           ══════════════════════════════════════════════════════════════ */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --sage-50:  #f4f8f0;
+            --sage-100: #e8f0e0;
+            --sage-200: #d2e4c4;
+            --sage-300: #b0d193;
+            --sage-400: #8bba69;
+            --sage-500: #6da14a;
+            --sage-600: #558137;
+            --sage-700: #43652d;
+            --sage-800: #385127;
+            --sage-900: #2f4422;
+
+            --cream-50:  #fefdfb;
+            --cream-100: #fbf8f1;
+            --cream-200: #f4efe2;
+            --white:     #ffffff;
+
+            --gray-50:  #fafaf8;
+            --gray-100: #f4f4ee;
+            --gray-200: #e5e5dc;
+            --gray-300: #d0d0c4;
+            --gray-400: #9c9c8e;
+            --gray-500: #6e6e62;
+            --gray-600: #4e4e45;
+            --gray-700: #383830;
+            --gray-800: #24241e;
+            --gray-900: #171714;
+
+            --temp-color:   #f57c00;
+            --humid-color:  #1e88e5;
+            --ph-color:     #43a047;
+            --rain-color:   #5c6bc0;
+            --water-color:  #00897b;
+            --moist-color:  #2e7d32;
+            --warn-color:   #e65100;
+            --danger-color: #c62828;
+
+            --border: #e2ded4;
+            --border-light: #ece9e1;
+            --shadow-sm: 0 1px 3px rgba(46,41,30,0.06), 0 1px 2px rgba(46,41,30,0.04);
+            --shadow-md: 0 4px 14px rgba(46,41,30,0.08), 0 2px 6px rgba(46,41,30,0.04);
+            --shadow-lg: 0 12px 32px rgba(46,41,30,0.10), 0 4px 12px rgba(46,41,30,0.05);
+
+            --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+            --ease: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            font-family: var(--font-sans);
+            font-size: 15px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            background: var(--cream-50);
+            color: var(--gray-700);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* ── Animated Background ────────────────────────────── */
+        .gradient-canvas {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .center-breath-blob {
+            position: fixed;
+            top: 40%;
+            left: 50%;
+            width: clamp(550px, 62vw, 900px);
+            height: clamp(450px, 52vw, 750px);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            background: radial-gradient(ellipse at center, rgba(176, 209, 147, 0.22) 0%, rgba(210, 228, 196, 0.12) 45%, transparent 70%);
+            filter: blur(55px);
+            animation: breathBlob 12s ease-in-out infinite alternate;
+        }
+
+        .aurora-glow {
+            position: fixed;
+            width: 480px;
+            height: 380px;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.25;
+            animation: auroraFloat 16s ease-in-out infinite alternate;
+        }
+        .aurora-bottom-left {
+            bottom: -100px;
+            left: -80px;
+            background: radial-gradient(circle, rgba(139, 186, 105, 0.45) 0%, transparent 70%);
+        }
+        .aurora-bottom-right {
+            bottom: -120px;
+            right: -60px;
+            background: radial-gradient(circle, rgba(30, 136, 229, 0.35) 0%, transparent 70%);
+            animation-delay: -6s;
+        }
+
+        @keyframes breathBlob {
+            0% { transform: translate(-50%, -50%) scale(0.92); opacity: 0.8; }
+            100% { transform: translate(-50%, -50%) scale(1.08); opacity: 1; }
+        }
+        @keyframes auroraFloat {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(40px, -30px); }
+        }
+
+        /* ── Main Layout Container ──────────────────────────── */
+        .app-wrapper {
+            position: relative;
+            z-index: 1;
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 24px 20px 60px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* ── Topbar / Header ────────────────────────────────── */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            padding: 16px 24px;
+            background: rgba(255, 255, 255, 0.82);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .brand-group {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .brand-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--sage-500), var(--sage-700));
+            color: #ffffff;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(109, 161, 74, 0.32);
+        }
+
+        .brand-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--gray-900);
+            line-height: 1.2;
+            letter-spacing: -0.02em;
+        }
+        .brand-subtitle {
+            font-size: 12.5px;
+            color: var(--sage-700);
+            font-weight: 600;
+        }
+
+        /* IP Configuration Toolbar */
+        .config-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            background: var(--gray-100);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 4px 10px;
+            transition: border-color var(--ease);
+        }
+        .input-group:focus-within {
+            border-color: var(--sage-500);
+            background: var(--white);
+            box-shadow: 0 0 0 3px rgba(109, 161, 74, 0.15);
+        }
+        .input-group-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--gray-500);
+            margin-right: 6px;
+            user-select: none;
+        }
+        .input-ip {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-800);
+            background: transparent;
+            border: none;
+            outline: none;
+            width: 175px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--font-sans);
+            font-size: 13px;
+            font-weight: 700;
+            padding: 8px 14px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s var(--ease);
+        }
+        .btn-primary {
+            background: var(--sage-600);
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(85, 129, 55, 0.25);
+        }
+        .btn-primary:hover {
+            background: var(--sage-700);
+            transform: translateY(-1px);
+        }
+        .btn-outline {
+            background: var(--white);
+            color: var(--gray-700);
+            border: 1px solid var(--border);
+        }
+        .btn-outline:hover {
+            background: var(--gray-100);
+            border-color: var(--gray-400);
+        }
+
+        /* Status Indicator Chip */
+        .status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            background: var(--gray-100);
+            color: var(--gray-600);
+            border: 1px solid var(--border);
+        }
+        .status-chip.online {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-color: #c8e6c9;
+        }
+        .status-chip.offline {
+            background: #ffebee;
+            color: #c62828;
+            border-color: #ffcdd2;
+        }
+        .status-chip.simulated {
+            background: #fff8e1;
+            color: #f57f17;
+            border-color: #ffecb3;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            box-shadow: 0 0 0 0 rgba(0,0,0,0.2);
+            animation: pulseDot 2s infinite;
+        }
+        @keyframes pulseDot {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(46, 125, 50, 0.6); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(46, 125, 50, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(46, 125, 50, 0); }
+        }
+
+        /* ── Cards Common Style ─────────────────────────────── */
+        .card {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: var(--shadow-sm);
+            transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
+        }
+        .card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        /* ── Section Header Bar ─────────────────────────────── */
+        .page-section-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+        }
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 17px;
+            font-weight: 800;
+            color: var(--gray-900);
+        }
+        .section-title i {
+            color: var(--sage-600);
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1;
+        }
+        .badge-green { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+        .badge-blue  { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
+        .badge-amber { background: #fff3e0; color: #e65100; border: 1px solid #ffe0b2; }
+        .badge-red   { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+        .badge-gray  { background: var(--gray-100); color: var(--gray-600); border: 1px solid var(--border); }
+
+        /* ── Stat Cards Grid (DHT / Soil Moisture Stats) ────── */
+        .detail-stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .big-stat-card {
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+        }
+
+        .big-stat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .big-stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .big-stat-icon.moist-bg { background: #e8f5e9; color: var(--sage-600); }
+        .big-stat-icon.water-bg { background: #e0f2f1; color: var(--water-color); }
+        .big-stat-icon.temp-bg  { background: #fff3e0; color: var(--temp-color); }
+        .big-stat-icon.info-bg  { background: #e3f2fd; color: var(--humid-color); }
+
+        .big-stat-label {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+        }
+
+        .big-stat-value-row {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        .big-stat-value {
+            font-family: var(--font-sans);
+            font-size: 42px;
+            font-weight: 800;
+            color: var(--gray-900);
+            letter-spacing: -0.03em;
+            line-height: 1;
+        }
+
+        .big-stat-unit {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--gray-400);
+        }
+
+        /* Progress Bar */
+        .progress-track {
+            width: 100%;
+            height: 8px;
+            background: var(--gray-200);
+            border-radius: 99px;
+            overflow: hidden;
+            margin-top: 14px;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 99px;
+            transition: width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        .progress-fill.moist { background: linear-gradient(90deg, #6da14a, #43a047); }
+        .progress-fill.water { background: linear-gradient(90deg, #29b6f6, #0288d1); }
+
+        .big-stat-range {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--gray-400);
+            font-weight: 600;
+            margin-top: 8px;
+            font-family: var(--font-mono);
+        }
+
+        /* ── Wide Chart Panel ───────────────────────────────── */
+        .detail-chart-card {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .chart-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .chart-header-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #e8f5e9;
+            color: var(--sage-700);
+        }
+        .chart-title {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--gray-900);
+        }
+        .chart-sub {
+            font-size: 12.5px;
+            color: var(--gray-500);
+        }
+
+        .chart-legend {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12.5px;
+            font-weight: 700;
+            color: var(--gray-700);
+        }
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        .legend-dot.moist { background: #43a047; }
+        .legend-dot.percent { background: #1e88e5; }
+
+        .chart-wrapper {
+            position: relative;
+            width: 100%;
+            height: 380px;
+        }
+
+        /* ── Insight Cards Grid ─────────────────────────────── */
+        .three-col-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .insight-card {
+            border-radius: 18px;
+            display: flex;
+            flex-direction: column;
+            padding: 20px 22px;
+            gap: 8px;
+            background: var(--white);
+            border: 1px solid var(--border);
+        }
+        .insight-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 2px;
+        }
+        .insight-icon.soil { background: #e8f5e9; color: #2e7d32; }
+        .insight-icon.pump { background: #e0f2f1; color: #00897b; }
+        .insight-icon.network { background: #e3f2fd; color: #1565c0; }
+
+        .insight-title {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--gray-900);
+        }
+        .insight-text {
+            font-size: 13.5px;
+            line-height: 1.55;
+            color: var(--gray-600);
+        }
+        .insight-text strong {
+            color: var(--gray-900);
+            font-weight: 700;
+        }
+
+        /* ── Terminal / Raw Payload Inspector ───────────────── */
+        .terminal-panel {
+            background: #1e1e1a;
+            border-radius: 16px;
+            color: #d6d6cd;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            padding: 18px 20px;
+            border: 1px solid #33332c;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+        .terminal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #33332c;
+            padding-bottom: 8px;
+        }
+        .terminal-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #a8a89f;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .terminal-body {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-x: auto;
+        }
+        .terminal-code {
+            color: #81c784;
+            font-weight: 500;
+            line-height: 1.6;
+        }
+        .terminal-meta {
+            font-size: 11.5px;
+            color: #8b8b80;
+        }
+
+        /* ── Arduino / ESP32 Helper Details ─────────────────── */
+        details.helper-details {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px 20px;
+            cursor: pointer;
+        }
+        details.helper-details summary {
+            font-weight: 700;
+            color: var(--gray-800);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+        }
+        .code-snippet {
+            background: var(--gray-100);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px;
+            font-family: var(--font-mono);
+            font-size: 12.5px;
+            color: var(--gray-800);
+            margin-top: 12px;
+            overflow-x: auto;
+            white-space: pre;
+            line-height: 1.5;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .app-wrapper {
+                padding: 16px 12px 40px;
+            }
+            .topbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .config-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .input-group {
+                width: 100%;
+            }
+            .input-ip {
+                width: 100%;
+            }
+            .big-stat-value {
+                font-size: 34px;
+            }
+        }
+    </style>
 </head>
 <body>
 
-<!-- Animated Background: Center Breath Blob + Bottom Aurora Glows -->
-<div class="gradient-canvas">
-    <div class="center-breath-blob"></div>
-    <div class="aurora-glow aurora-bottom-left"></div>
-    <div class="aurora-glow aurora-bottom-right"></div>
-</div>
-
-<!-- Sidebar Overlay -->
-<div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
-
-<!-- Left White Theme Sidebar -->
-<aside id="sidebar" class="sidebar">
-    <div class="sidebar-header">
-        <div class="sidebar-logo" onclick="navigate('home')">
-            <div class="sidebar-logo-icon">
-                <i data-lucide="sprout"></i>
-            </div>
-            <div>
-                <span class="sidebar-logo-name">Fari</span>
-                <span class="sidebar-logo-sub">Si Dukun Tanaman</span>
-            </div>
-        </div>
-        <button class="sidebar-close-btn" onclick="closeSidebar()" aria-label="Tutup Menu">
-            <i data-lucide="x"></i>
-        </button>
+    <!-- Animated Nature Background -->
+    <div class="gradient-canvas">
+        <div class="center-breath-blob"></div>
+        <div class="aurora-glow aurora-bottom-left"></div>
+        <div class="aurora-glow aurora-bottom-right"></div>
     </div>
 
-    <div class="sidebar-section-label">NAVIGASI HALAMAN</div>
-    <nav class="sidebar-nav">
-        <!-- Default Dashboard: ML & Aktuator -->
-        <a class="sidebar-item active" onclick="navigate('home')" id="nav-home">
-            <div class="sidebar-item-icon homeicon">
-                <i data-lucide="layout-dashboard"></i>
-            </div>
-            <div class="sidebar-item-text">
-                <span class="sidebar-item-title">Dashboard Utama</span>
-                <span class="sidebar-item-sub">Prediksi ML &amp; Kontrol Aktuator</span>
-            </div>
-        </a>
+    <!-- Main Container -->
+    <div class="app-wrapper">
 
-        <!-- Halaman Telemetri Sensor Real Time -->
-        <a class="sidebar-item" onclick="navigate('telemetri')" id="nav-telemetri">
-            <div class="sidebar-item-icon realtime">
-                <i data-lucide="activity"></i>
+        <!-- Topbar Header -->
+        <header class="topbar">
+            <div class="brand-group">
+                <div class="brand-icon">
+                    <i data-lucide="sprout"></i>
+                </div>
+                <div>
+                    <h1 class="brand-title">Dashboard Fari Si Dukun</h1>
+                    <div class="brand-subtitle">ESP32 Soil Moisture IoT Telemetry</div>
+                </div>
             </div>
-            <div class="sidebar-item-text">
-                <span class="sidebar-item-title">Telemetri Real-Time</span>
-                <span class="sidebar-item-sub">Monitoring 5 sensor IoT lapangan</span>
-            </div>
-        </a>
 
-        <!-- Halaman Suhu & Kelembapan -->
-        <a class="sidebar-item" onclick="navigate('temphumid')" id="nav-temphumid">
-            <div class="sidebar-item-icon temphumid">
-                <i data-lucide="thermometer"></i>
-            </div>
-            <div class="sidebar-item-text">
-                <span class="sidebar-item-title">Suhu &amp; Kelembapan</span>
-                <span class="sidebar-item-sub">DHT22 — Monitoring iklim mikro</span>
-            </div>
-        </a>
+            <!-- Fetch Configuration & Status -->
+            <div class="config-bar">
+                <div class="input-group">
+                    <span class="input-group-label">ESP32 IP:</span>
+                    <input type="text" id="esp-ip-input" class="input-ip" value="http://192.168.137.2/" placeholder="http://192.168.137.2/">
+                </div>
 
-        <!-- Halaman pH Tanah & Reservoir -->
-        <a class="sidebar-item" onclick="navigate('phwater')" id="nav-phwater">
-            <div class="sidebar-item-icon phwater">
-                <i data-lucide="flask-conical"></i>
-            </div>
-            <div class="sidebar-item-text">
-                <span class="sidebar-item-title">pH Tanah &amp; Reservoir</span>
-                <span class="sidebar-item-sub">Elektroda pH &amp; HC-SR04</span>
-            </div>
-        </a>
+                <button id="btn-fetch-now" class="btn btn-primary" title="Ambil data sekarang via fetch()">
+                    <i data-lucide="refresh-cw"></i>
+                    <span>Fetch Data</span>
+                </button>
 
-        <!-- Halaman Log Riwayat Telemetri -->
-        <a class="sidebar-item" onclick="navigate('history')" id="nav-history">
-            <div class="sidebar-item-icon historyicon">
-                <i data-lucide="scroll-text"></i>
-            </div>
-            <div class="sidebar-item-text">
-                <span class="sidebar-item-title">Log Riwayat Telemetri</span>
-                <span class="sidebar-item-sub">Tabel 10 rekam jejak sensor</span>
-            </div>
-        </a>
-    </nav>
+                <button id="btn-toggle-auto" class="btn btn-outline" title="Nyalakan/matikan auto refresh">
+                    <i data-lucide="timer"></i>
+                    <span id="auto-btn-text">Auto (2s): ON</span>
+                </button>
 
-    <div class="sidebar-section-label mt-4">STATUS SISTEM</div>
-    <div class="sidebar-status">
-        <div class="sidebar-status-row">
-            <div class="status-indicator">
-                <span class="status-ping"></span>
-                <span class="status-dot"></span>
+                <button id="btn-toggle-demo" class="btn btn-outline" title="Mode simulasi jika ESP32 belum online">
+                    <i data-lucide="sliders"></i>
+                    <span id="demo-btn-text">Demo Mode: OFF</span>
+                </button>
+
+                <div id="connection-status-chip" class="status-chip offline">
+                    <div class="pulse-dot"></div>
+                    <span id="connection-status-text">Menghubungkan...</span>
+                </div>
             </div>
-            <span class="sidebar-status-label">ESP32 Connected</span>
+        </header>
+
+        <!-- Section Title Bar -->
+        <div class="page-section-bar">
+            <h2 class="section-title">
+                <i data-lucide="droplets"></i>
+                Monitoring Kelembapan Tanah (Soil Moisture)
+            </h2>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <span class="badge badge-green">ESP32 ADC 12-Bit</span>
+                <span class="badge badge-blue" id="chip-last-sync">Belum ada data</span>
+            </div>
         </div>
-        <div class="sidebar-status-row">
-            <div class="glow-dot sm"></div>
-            <span class="sidebar-status-label">ML Engine Active</span>
+
+        <!-- 4 Stat Cards Row -->
+        <div class="detail-stats-row">
+
+            <!-- Card 1: Nilai ADC Raw -->
+            <div class="card big-stat-card">
+                <div class="big-stat-header">
+                    <div class="big-stat-icon moist-bg">
+                        <i data-lucide="activity"></i>
+                    </div>
+                    <span id="moist-status-badge" class="badge badge-green">Optimal</span>
+                </div>
+                <div class="big-stat-label">Nilai Mentah Sensor (ADC Raw)</div>
+                <div class="big-stat-value-row">
+                    <span id="stat-adc-val" class="big-stat-value">1850</span>
+                    <span class="big-stat-unit">ADC</span>
+                </div>
+                <div class="progress-track">
+                    <div id="bar-adc" class="progress-fill moist" style="width: 45%;"></div>
+                </div>
+                <div class="big-stat-range">
+                    <span>Basah (0)</span>
+                    <span>Kering (4095)</span>
+                </div>
+            </div>
+
+            <!-- Card 2: Estimasi Kelembapan Relatif (%) -->
+            <div class="card big-stat-card">
+                <div class="big-stat-header">
+                    <div class="big-stat-icon water-bg">
+                        <i data-lucide="waves"></i>
+                    </div>
+                    <span id="percent-status-badge" class="badge badge-blue">Cukup Air</span>
+                </div>
+                <div class="big-stat-label">Estimasi Kelembapan Tanah</div>
+                <div class="big-stat-value-row">
+                    <span id="stat-percent-val" class="big-stat-value">65</span>
+                    <span class="big-stat-unit">%</span>
+                </div>
+                <div class="progress-track">
+                    <div id="bar-percent" class="progress-fill water" style="width: 65%;"></div>
+                </div>
+                <div class="big-stat-range">
+                    <span>0% (Sangat Kering)</span>
+                    <span>100% (Saturasi)</span>
+                </div>
+            </div>
+
+            <!-- Card 3: Statistik Min & Max Sesi -->
+            <div class="card big-stat-card">
+                <div class="big-stat-header">
+                    <div class="big-stat-icon temp-bg">
+                        <i data-lucide="bar-chart-2"></i>
+                    </div>
+                    <span class="badge badge-gray">Sesi Ini</span>
+                </div>
+                <div class="big-stat-label">Rentang Ekstrim (Min / Max)</div>
+                <div class="big-stat-value-row">
+                    <span id="stat-min-val" class="big-stat-value" style="font-size: 32px;">1850</span>
+                    <span class="big-stat-unit">/</span>
+                    <span id="stat-max-val" class="big-stat-value" style="font-size: 32px; color: var(--gray-600);">1850</span>
+                </div>
+                <div class="big-stat-range" style="margin-top: 22px;">
+                    <span>ADC Terendah</span>
+                    <span>ADC Tertinggi</span>
+                </div>
+            </div>
+
+            <!-- Card 4: Rata-Rata & Total Sampel -->
+            <div class="card big-stat-card">
+                <div class="big-stat-header">
+                    <div class="big-stat-icon info-bg">
+                        <i data-lucide="layers"></i>
+                    </div>
+                    <span class="badge badge-gray" id="stat-sample-badge">0 Sampel</span>
+                </div>
+                <div class="big-stat-label">Rata-rata Pembacaan</div>
+                <div class="big-stat-value-row">
+                    <span id="stat-avg-val" class="big-stat-value">1850</span>
+                    <span class="big-stat-unit">ADC</span>
+                </div>
+                <div class="big-stat-range" style="margin-top: 22px;">
+                    <span>Update berkala via fetch()</span>
+                    <span id="stat-latency-text">0 ms</span>
+                </div>
+            </div>
+
         </div>
+
+        <!-- Wide Interactive Chart Panel -->
+        <div class="card detail-chart-card">
+            <div class="chart-header">
+                <div class="chart-header-left">
+                    <div class="chart-header-icon">
+                        <i data-lucide="line-chart"></i>
+                    </div>
+                    <div>
+                        <h3 class="chart-title">Grafik Tren Kelembapan Realtime (ESP32)</h3>
+                        <p class="chart-sub">Menampilkan 20 data pembacaan terakhir dari sensor tanah</p>
+                    </div>
+                </div>
+                <div class="chart-legend">
+                    <div class="legend-item">
+                        <span class="legend-dot moist"></span>
+                        <span>Soil Moisture (ADC)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot percent"></span>
+                        <span>Kelembapan (%)</span>
+                    </div>
+                </div>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="soilChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 3 Insight Cards (Agronomi & Rekomendasi) -->
+        <div class="three-col-grid">
+            <div class="card insight-card">
+                <div class="insight-icon soil">
+                    <i data-lucide="leaf"></i>
+                </div>
+                <h4 class="insight-title">Kondisi Tanah</h4>
+                <p class="insight-text" id="insight-soil-text">
+                    Nilai sensor <strong id="insight-soil-val">1850 ADC (~65%)</strong> berada pada tingkat kelembapan yang <strong>sangat baik</strong> untuk perakaran tanaman hortikultura.
+                </p>
+            </div>
+
+            <div class="card insight-card">
+                <div class="insight-icon pump">
+                    <i data-lucide="droplet"></i>
+                </div>
+                <h4 class="insight-title">Rekomendasi Irigasi</h4>
+                <p class="insight-text" id="insight-pump-text">
+                    Kadar air mencukupi. <strong>Pompa irigasi dinonaktifkan (OFF)</strong> guna mencegah pembusukan akar akibat kelebihan air.
+                </p>
+            </div>
+
+            <div class="card insight-card">
+                <div class="insight-icon network">
+                    <i data-lucide="wifi"></i>
+                </div>
+                <h4 class="insight-title">Status Jaringan ESP32</h4>
+                <p class="insight-text" id="insight-network-text">
+                    Terhubung ke ESP32 pada alamat <strong id="insight-ip-text">192.168.137.2</strong> via HTTP GET request.
+                </p>
+            </div>
+        </div>
+
+        <!-- Raw Payload Terminal Inspector -->
+        <div class="terminal-panel">
+            <div class="terminal-header">
+                <div class="terminal-title">
+                    <i data-lucide="terminal" style="width: 16px; height: 16px;"></i>
+                    <span>Payload Inspector (Respons fetch dari ESP32)</span>
+                </div>
+                <span class="terminal-meta" id="payload-timestamp">Menunggu respon pertama...</span>
+            </div>
+            <div class="terminal-body">
+                <pre class="terminal-code" id="payload-display">{
+  "soil_moisture": 1850
+}</pre>
+                <div class="terminal-meta" id="payload-url-info">URL: http://192.168.137.2/ | Method: GET</div>
+            </div>
+        </div>
+
+        <!-- Helper Guide for ESP32 Arduino Code -->
+        <details class="helper-details">
+            <summary>
+                <i data-lucide="code-2" style="width: 18px; height: 18px; color: var(--sage-700);"></i>
+                <span>Petunjuk Format Kode ESP32 Arduino (Web Server + CORS)</span>
+            </summary>
+            <div style="margin-top: 10px; font-size: 13.5px; color: var(--gray-600);">
+                Agar browser dapat membaca respons dari ESP32 tanpa terhalang <em>Cross-Origin Resource Sharing (CORS)</em>, pastikan kode ESP32 menyertakan header <code>Access-Control-Allow-Origin: *</code> seperti contoh berikut:
+            </div>
+            <pre class="code-snippet">#include &lt;WiFi.h&gt;
+#include &lt;WebServer.h&gt;
+
+WebServer server(80);
+const int SOIL_PIN = 34; // Pin ADC ESP32
+
+void handleRoot() {
+  int rawValue = analogRead(SOIL_PIN);
+  
+  // Wajib tambahkan header CORS ini agar javascript fetch() dari browser berhasil:
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.sendHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  server.sendHeader("Access-Control-Allow-Headers", "*");
+  
+  // Kirim payload JSON sesuai format
+  String json = "{\"soil_moisture\":" + String(rawValue) + "}";
+  server.send(200, "application/json", json);
+}
+
+void setup() {
+  Serial.begin(115200);
+  WiFi.begin("SSID_HOTSPOT", "PASSWORD");
+  // Tunggu koneksi wifi...
+  server.on("/", handleRoot);
+  server.begin();
+  Serial.print("ESP32 IP: ");
+  Serial.println(WiFi.localIP());
+}</pre>
+        </details>
+
     </div>
 
-    <div class="sidebar-footer">
-        <span class="sidebar-footer-text">Fari Smart Farming v2.0</span>
-        <span class="sidebar-footer-sub">IoT ESP32 · ML Engine</span>
-    </div>
-</aside>
+    <!-- ══════════════════════════════════════════════════════════════
+         JAVASCRIPT LOGIC: FETCH(), CHART.JS, CALIBRATION & STATS
+         ══════════════════════════════════════════════════════════════ -->
+    <script>
+        // ── Inisialisasi Lucide Icons ──
+        lucide.createIcons();
 
-<!-- Main App Wrapper that smoothly shifts to the right when sidebar is open -->
-<div id="app-wrapper" class="app-wrapper">
+        // ── State Variabel ──
+        const state = {
+            espUrl: 'http://192.168.137.2/',
+            isAuto: true,
+            isDemo: false,
+            fetchIntervalMs: 2000,
+            intervalId: null,
+            isFetching: false,
+            samplesCount: 0,
+            minAdc: null,
+            maxAdc: null,
+            sumAdc: 0,
+            lastSoilMoisture: 1850,
+            historyLabels: [],
+            historyAdc: [],
+            historyPercent: [],
+            // Kalibrasi ADC ESP32:
+            // Udara/Kering = ~3500-4095
+            // Air/Sangat Basah = ~1200-1500
+            dryAdc: 3500,
+            wetAdc: 1200
+        };
 
-    <!-- Topbar Navigation -->
-    <header class="topbar">
-        <div class="topbar-left">
-            <button id="sidebar-toggle-btn" class="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="Toggle Menu Sidebar" title="Buka Menu Navigasi">
-                <i data-lucide="menu"></i>
-            </button>
-            <div class="topbar-title-area">
-                <span id="page-title" class="topbar-page-title">Dashboard Fari Si Dukun Tanaman</span>
-                <span id="page-subtitle" class="topbar-page-sub">Prediksi Machine Learning &amp; Kontrol Aktuator</span>
-            </div>
-        </div>
-        <div class="topbar-right">
-            <div class="topbar-chip">
-                <div class="status-indicator">
-                    <span class="status-ping"></span>
-                    <span class="status-dot"></span>
-                </div>
-                <span class="topbar-chip-text">ESP32</span>
-            </div>
-            <div class="topbar-chip">
-                <i data-lucide="clock" class="topbar-chip-icon"></i>
-                <span id="realtime-clock" class="topbar-clock">00:00:00</span>
-                <span class="topbar-clock-wib">WIB</span>
-            </div>
-        </div>
-    </header>
+        // ── DOM Elemen ──
+        const espIpInput = document.getElementById('esp-ip-input');
+        const btnFetchNow = document.getElementById('btn-fetch-now');
+        const btnToggleAuto = document.getElementById('btn-toggle-auto');
+        const autoBtnText = document.getElementById('auto-btn-text');
+        const btnToggleDemo = document.getElementById('btn-toggle-demo');
+        const demoBtnText = document.getElementById('demo-btn-text');
+        const connectionStatusChip = document.getElementById('connection-status-chip');
+        const connectionStatusText = document.getElementById('connection-status-text');
+        const chipLastSync = document.getElementById('chip-last-sync');
 
-    <!-- Main Sliding Viewport -->
-    <main class="viewport-container">
-        <div id="pages-track" class="pages-track">
+        // Stat Card DOM
+        const statAdcVal = document.getElementById('stat-adc-val');
+        const barAdc = document.getElementById('bar-adc');
+        const moistStatusBadge = document.getElementById('moist-status-badge');
 
-            <!-- ==============================================
-                 SLIDE 0: DEFAULT DASHBOARD (ML + AKTUATOR)
-                 ============================================== -->
-            <section id="page-home" class="page-slide active-slide">
-                <div class="slide-inner">
-                    <!-- Hero Header -->
-                    <div class="hero-header">
-                        <div class="hero-tag">
-                            <div class="glow-dot xs"></div>
-                            <span>Smart Agriculture IoT &amp; Machine Learning</span>
-                        </div>
-                        <h1 class="hero-title">Dashboard Fari <span class="hero-highlight">Si Dukun Tanaman</span></h1>
-                        <p class="hero-sub">Sistem IoT berbasis ESP32 dan Machine Learning untuk pemanenan air hujan otomatis dan rekomendasi tanaman terbaik.</p>
-                    </div>
+        const statPercentVal = document.getElementById('stat-percent-val');
+        const barPercent = document.getElementById('bar-percent');
+        const percentStatusBadge = document.getElementById('percent-status-badge');
 
-                    <div class="page-section-bar">
-                        <h2 class="section-title">
-                            <i data-lucide="sparkles"></i>
-                            Prediksi ML &amp; Kontrol Aktuator
-                        </h2>
-                        <div class="countdown-chip">
-                            <div class="glow-dot xs"></div>
-                            <span id="countdown-text" class="countdown-text">Pembaruan: 30:00</span>
-                        </div>
-                    </div>
+        const statMinVal = document.getElementById('stat-min-val');
+        const statMaxVal = document.getElementById('stat-max-val');
+        const statAvgVal = document.getElementById('stat-avg-val');
+        const statSampleBadge = document.getElementById('stat-sample-badge');
+        const statLatencyText = document.getElementById('stat-latency-text');
 
-                    <div class="two-col-grid">
-                        <!-- Machine Learning Prediction Panel -->
-                        <div class="panel-nature">
-                            <div class="panel-header">
-                                <div class="panel-header-left">
-                                    <div class="panel-icon-box">
-                                        <i data-lucide="brain"></i>
-                                    </div>
-                                    <div>
-                                        <h3 class="panel-title">Prediksi Machine Learning</h3>
-                                        <p class="panel-sub">Klasifikasi Kesesuaian Lahan Tanam</p>
-                                    </div>
-                                </div>
-                                <span id="ml-status-badge" class="badge badge-green">
-                                    <i data-lucide="check-circle-2"></i>
-                                    <span id="ml-status-text">Sangat Layak</span>
-                                </span>
-                            </div>
+        // Insight DOM
+        const insightSoilText = document.getElementById('insight-soil-text');
+        const insightSoilVal = document.getElementById('insight-soil-val');
+        const insightPumpText = document.getElementById('insight-pump-text');
+        const insightNetworkText = document.getElementById('insight-network-text');
+        const insightIpText = document.getElementById('insight-ip-text');
 
-                            <div class="ml-rec-box">
-                                <div class="ml-rec-left">
-                                    <span class="ml-rec-label">Rekomendasi Tanaman Terbaik</span>
-                                    <h4 id="ml-crop-name" class="ml-crop-name">Cabai Merah (Capsicum Annuum)</h4>
-                                </div>
-                                <div class="ml-rec-right">
-                                    <span class="ml-rec-label">Akurasi Model</span>
-                                    <div class="ml-accuracy-row">
-                                        <span id="ml-accuracy" class="ml-accuracy-val">90.9</span>
-                                        <span class="ml-accuracy-unit">%</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="progress-track ml-accuracy-progress">
-                                <div id="ml-accuracy-bar" class="progress-fill ph"></div>
-                            </div>
+        // Terminal DOM
+        const payloadDisplay = document.getElementById('payload-display');
+        const payloadTimestamp = document.getElementById('payload-timestamp');
+        const payloadUrlInfo = document.getElementById('payload-url-info');
 
-                            <div class="ml-reason-wrap">
-                                <div class="ml-reason-header">
-                                    <i data-lucide="message-square-text"></i>
-                                    <span class="ml-reason-label">Analisis &amp; Alasan</span>
-                                </div>
-                                <p id="ml-reason" class="ml-reason-text">Suhu dan pasokan air moderat ideal untuk perkembangan bunga &amp; pembentukan buah Cabai.</p>
-                            </div>
+        // ── Setup Chart.js ──
+        const ctx = document.getElementById('soilChart').getContext('2d');
+        const soilChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Soil Moisture (ADC)',
+                        data: [],
+                        borderColor: '#43a047',
+                        backgroundColor: 'rgba(67, 160, 71, 0.08)',
+                        borderWidth: 2.5,
+                        fill: true,
+                        tension: 0.35,
+                        pointRadius: 3,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: '#43a047',
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Kelembapan (%)',
+                        data: [],
+                        borderColor: '#1e88e5',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        borderDash: [5, 4],
+                        fill: false,
+                        tension: 0.35,
+                        pointRadius: 2,
+                        pointHoverRadius: 5,
+                        pointBackgroundColor: '#1e88e5',
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 400 },
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(0,0,0,0.04)' },
+                        ticks: {
+                            font: { family: "'JetBrains Mono', monospace", size: 11 },
+                            color: '#6e6e62',
+                            maxRotation: 0
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Nilai ADC (0-4095)',
+                            font: { family: "'Plus Jakarta Sans', sans-serif", weight: 'bold', size: 12 },
+                            color: '#43a047'
+                        },
+                        min: 0,
+                        max: 4095,
+                        grid: { color: 'rgba(0,0,0,0.05)' },
+                        ticks: {
+                            font: { family: "'JetBrains Mono', monospace", size: 11 },
+                            color: '#6e6e62'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Persentase (%)',
+                            font: { family: "'Plus Jakarta Sans', sans-serif", weight: 'bold', size: 12 },
+                            color: '#1e88e5'
+                        },
+                        min: 0,
+                        max: 100,
+                        grid: { drawOnChartArea: false },
+                        ticks: {
+                            font: { family: "'JetBrains Mono', monospace", size: 11 },
+                            color: '#6e6e62',
+                            callback: function(v) { return v + '%'; }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(23, 23, 20, 0.92)',
+                        titleFont: { family: "'Plus Jakarta Sans', sans-serif", size: 13, weight: 'bold' },
+                        bodyFont: { family: "'JetBrains Mono', monospace", size: 12 },
+                        padding: 10,
+                        cornerRadius: 10
+                    }
+                }
+            }
+        });
 
-                            <div class="ml-alt-wrap">
-                                <span class="ml-alt-label">Alternatif Tanaman:</span>
-                                <div id="ml-alternatives" class="ml-alt-chips">
-                                    <span class="badge badge-gray">Tomat (85%)</span>
-                                    <span class="badge badge-gray">Terong (80%)</span>
-                                </div>
-                            </div>
-                        </div>
+        // ── Helper: Konversi ADC ke Persentase (%) ──
+        function convertAdcToPercentage(adc) {
+            // Karena sensor soil moisture kapasitif/resistif:
+            // Nilai ADC tinggi = kering (kurang air)
+            // Nilai ADC rendah = basah (banyak air)
+            let pct = ((state.dryAdc - adc) / (state.dryAdc - state.wetAdc)) * 100;
+            if (pct < 0) pct = 0;
+            if (pct > 100) pct = 100;
+            return Math.round(pct);
+        }
 
-                        <!-- Actuator Control Panel -->
-                        <div class="card p-7 flex-col-card">
-                            <div class="panel-header actuator-panel-header">
-                                <div class="panel-header-left">
-                                    <div class="panel-icon-box">
-                                        <i data-lucide="settings-2"></i>
-                                    </div>
-                                    <div>
-                                        <h3 class="panel-title">Kontrol Aktuator</h3>
-                                        <p class="panel-sub">Otomasi &amp; Pemanenan Air</p>
-                                    </div>
-                                </div>
-                            </div>
+        // ── Helper: Evaluasi Status Tanah ──
+        function getMoistureStatus(adc, pct) {
+            if (pct < 30) {
+                return {
+                    status: 'Kering',
+                    badgeClass: 'badge-red',
+                    recommendation: 'Tanah sangat kering! Segera aktifkan pompa irigasi untuk mencegah tanaman layu.',
+                    condition: 'Kadar air tanah berada di bawah ambang batas minimal.'
+                };
+            } else if (pct < 55) {
+                return {
+                    status: 'Sedang',
+                    badgeClass: 'badge-amber',
+                    recommendation: 'Kadar air mulai menurun. Pertimbangkan penyiraman ringan dalam beberapa jam ke depan.',
+                    condition: 'Kondisi air tanah cukup namun memerlukan perhatian berkala.'
+                };
+            } else if (pct <= 80) {
+                return {
+                    status: 'Optimal / Lembap',
+                    badgeClass: 'badge-green',
+                    recommendation: 'Kadar air sangat ideal. Pompa air OFF untuk efisiensi dan kesehatan akar.',
+                    condition: 'Kelembapan sempurna untuk penyerapan unsur hara oleh akar tanaman.'
+                };
+            } else {
+                return {
+                    status: 'Sangat Basah',
+                    badgeClass: 'badge-blue',
+                    recommendation: 'Tanah jenuh air! Pastikan drainase pot/tanah berfungsi baik dan hentikan penyiraman.',
+                    condition: 'Kondisi saturasi air tinggi.'
+                };
+            }
+        }
 
-                            <div class="mode-toggle-row">
-                                <div>
-                                    <span class="mode-toggle-title">Mode Kendali</span>
-                                    <span id="mode-desc" class="mode-toggle-sub">Otomatis oleh ESP32</span>
-                                </div>
-                                <div id="btn-toggle-mode" class="toggle-track on" onclick="toggleControlMode()">
-                                    <div id="toggle-circle" class="toggle-knob"></div>
-                                </div>
-                            </div>
+        // ── Update UI dengan Data Baru ──
+        function updateDashboard(soilMoisture, latencyMs = 0) {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-                            <!-- Servo Gate -->
-                            <div class="actuator-card">
-                                <div class="actuator-header">
-                                    <div class="actuator-icon rain">
-                                        <i data-lucide="git-fork"></i>
-                                    </div>
-                                    <div>
-                                        <h4 class="actuator-title">Servo Gerbang Parit</h4>
-                                        <p class="actuator-sub">Pemanenan Air Hujan</p>
-                                    </div>
-                                    <span id="servo-badge" class="badge badge-green">TERBUKA</span>
-                                </div>
-                                <div class="actuator-footer">
-                                    <span class="actuator-info">Sudut: <strong id="servo-angle-text">90&deg; (Tampung)</strong></span>
-                                    <button id="btn-servo-manual" onclick="toggleManualActuator('servo')" disabled class="btn-actuator disabled">Toggle</button>
-                                </div>
-                            </div>
+            state.lastSoilMoisture = soilMoisture;
+            state.samplesCount++;
+            state.sumAdc += soilMoisture;
 
-                            <!-- Irrigation Pump -->
-                            <div class="actuator-card">
-                                <div class="actuator-header">
-                                    <div class="actuator-icon ph">
-                                        <i data-lucide="power"></i>
-                                    </div>
-                                    <div>
-                                        <h4 class="actuator-title">Pompa Irigasi</h4>
-                                        <p class="actuator-sub">Relay Module</p>
-                                    </div>
-                                    <span id="pump-badge" class="badge badge-gray">NON-AKTIF</span>
-                                </div>
-                                <div class="actuator-footer">
-                                    <span class="actuator-info">Debit: <strong id="pump-flow-text" class="actuator-flow-text">0 L/menit</strong></span>
-                                    <button id="btn-pump-manual" onclick="toggleManualActuator('pump')" disabled class="btn-actuator disabled">Toggle</button>
-                                </div>
-                            </div>
+            if (state.minAdc === null || soilMoisture < state.minAdc) state.minAdc = soilMoisture;
+            if (state.maxAdc === null || soilMoisture > state.maxAdc) state.maxAdc = soilMoisture;
 
-                            <div class="actuator-footer-bar">
-                                <span class="actuator-interlock">
-                                    <i data-lucide="shield-check"></i>
-                                    Interlock Active
-                                </span>
-                                <span id="last-actuator-update" class="actuator-timestamp">&mdash;</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            const avgAdc = Math.round(state.sumAdc / state.samplesCount);
+            const percentage = convertAdcToPercentage(soilMoisture);
+            const evalStatus = getMoistureStatus(soilMoisture, percentage);
 
-            <!-- ==============================================
-                 SLIDE 1: HALAMAN TELEMETRI SENSOR REAL TIME
-                 ============================================== -->
-            <section id="page-telemetri" class="page-slide">
-                <div class="slide-inner">
-                    <div class="page-section-bar">
-                        <h2 class="section-title">
-                            <i data-lucide="activity"></i>
-                            Telemetri Sensor Real-Time
-                        </h2>
-                        <div class="countdown-chip">
-                            <div class="glow-dot xs"></div>
-                            <span class="countdown-text">Live 5 Sensor IoT</span>
-                        </div>
-                    </div>
+            // Update Kartu Nilai ADC
+            statAdcVal.textContent = soilMoisture;
+            barAdc.style.width = Math.min(100, (soilMoisture / 4095) * 100) + '%';
+            moistStatusBadge.className = 'badge ' + evalStatus.badgeClass;
+            moistStatusBadge.textContent = evalStatus.status;
 
-                    <!-- 5 Sensors Grid -->
-                    <div class="sensor-grid">
-                        <div class="card p-5">
-                            <div class="sensor-card-header">
-                                <span class="sensor-label">Suhu Udara</span>
-                                <div class="sensor-icon-box temp">
-                                    <i data-lucide="thermometer"></i>
-                                </div>
-                            </div>
-                            <div class="sensor-value-row">
-                                <span id="val-temp" class="sensor-value">28.5</span>
-                                <span class="sensor-unit">&deg;C</span>
-                            </div>
-                            <div class="sensor-footer">
-                                <span class="sensor-source">DHT22</span>
-                                <span id="status-temp-badge" class="badge badge-green">Optimal</span>
-                            </div>
-                            <div class="progress-track mt-3">
-                                <div id="bar-temp" class="progress-fill temp"></div>
-                            </div>
-                        </div>
+            // Update Kartu Persentase
+            statPercentVal.textContent = percentage;
+            barPercent.style.width = percentage + '%';
+            percentStatusBadge.className = 'badge ' + evalStatus.badgeClass;
+            percentStatusBadge.textContent = percentage + '% Kapasitas Lapang';
 
-                        <div class="card p-5">
-                            <div class="sensor-card-header">
-                                <span class="sensor-label">Kelembapan</span>
-                                <div class="sensor-icon-box humid">
-                                    <i data-lucide="droplets"></i>
-                                </div>
-                            </div>
-                            <div class="sensor-value-row">
-                                <span id="val-humidity" class="sensor-value">72</span>
-                                <span class="sensor-unit">%</span>
-                            </div>
-                            <div class="sensor-footer">
-                                <span class="sensor-source">DHT22</span>
-                                <span id="status-humidity-badge" class="badge badge-blue">Lembap</span>
-                            </div>
-                            <div class="progress-track mt-3">
-                                <div id="bar-humidity" class="progress-fill humid"></div>
-                            </div>
-                        </div>
+            // Update Kartu Min / Max / Avg
+            statMinVal.textContent = state.minAdc;
+            statMaxVal.textContent = state.maxAdc;
+            statAvgVal.textContent = avgAdc;
+            statSampleBadge.textContent = state.samplesCount + ' Sampel';
+            statLatencyText.textContent = latencyMs > 0 ? latencyMs + ' ms' : 'Simulasi';
 
-                        <div class="card p-5">
-                            <div class="sensor-card-header">
-                                <span class="sensor-label">pH Tanah</span>
-                                <div class="sensor-icon-box ph">
-                                    <i data-lucide="flask-conical"></i>
-                                </div>
-                            </div>
-                            <div class="sensor-value-row">
-                                <span id="val-ph" class="sensor-value">6.5</span>
-                                <span class="sensor-unit">pH</span>
-                            </div>
-                            <div class="sensor-footer">
-                                <span class="sensor-source">Electro Probe</span>
-                                <span id="status-ph-badge" class="badge badge-green">Netral</span>
-                            </div>
-                            <div class="progress-track mt-3">
-                                <div id="bar-ph" class="progress-fill ph"></div>
-                            </div>
-                        </div>
+            // Update Sync Badge
+            chipLastSync.textContent = 'Sinkron: ' + timeStr;
 
-                        <div class="card p-5">
-                            <div class="sensor-card-header">
-                                <span class="sensor-label">Curah Hujan</span>
-                                <div class="sensor-icon-box rain">
-                                    <i data-lucide="cloud-rain"></i>
-                                </div>
-                            </div>
-                            <div class="sensor-value-row">
-                                <span id="val-rain" class="sensor-value">45</span>
-                                <span class="sensor-unit">%</span>
-                            </div>
-                            <div class="sensor-footer">
-                                <span class="sensor-source">Raindrop</span>
-                                <span id="status-rain-badge" class="badge badge-blue">Gerimis</span>
-                            </div>
-                            <div class="progress-track mt-3">
-                                <div id="bar-rain" class="progress-fill rain"></div>
-                            </div>
-                        </div>
+            // Update Insight Cards
+            insightSoilVal.textContent = `${soilMoisture} ADC (~${percentage}%)`;
+            insightSoilText.innerHTML = `Nilai sensor <strong>${soilMoisture} ADC (~${percentage}%)</strong> menunjukkan status <strong>${evalStatus.status}</strong>. ${evalStatus.condition}`;
+            insightPumpText.innerHTML = `Rekomendasi: <strong>${evalStatus.recommendation}</strong>`;
 
-                        <div class="card p-5">
-                            <div class="sensor-card-header">
-                                <span class="sensor-label">Reservoir</span>
-                                <div class="sensor-icon-box water">
-                                    <i data-lucide="waves"></i>
-                                </div>
-                            </div>
-                            <div class="sensor-value-row">
-                                <span id="val-reservoir" class="sensor-value">68</span>
-                                <span class="sensor-unit">%</span>
-                            </div>
-                            <div class="sensor-footer">
-                                <span class="sensor-source">HC-SR04</span>
-                                <span id="status-reservoir-badge" class="badge badge-green">Aman</span>
-                            </div>
-                            <div class="progress-track mt-3">
-                                <div id="bar-reservoir" class="progress-fill water"></div>
-                            </div>
-                        </div>
-                    </div>
+            // Update Chart.js Data (Max 20 data points)
+            if (soilChart.data.labels.length >= 20) {
+                soilChart.data.labels.shift();
+                soilChart.data.datasets[0].data.shift();
+                soilChart.data.datasets[1].data.shift();
+            }
+            soilChart.data.labels.push(timeStr);
+            soilChart.data.datasets[0].data.push(soilMoisture);
+            soilChart.data.datasets[1].data.push(percentage);
+            soilChart.update('none'); // Update tanpa re-render berat
+        }
 
-                    <!-- 2 Live Charts Grid -->
-                    <div class="two-col-grid">
-                        <div class="card p-6">
-                            <div class="chart-header">
-                                <div class="chart-header-left">
-                                    <div class="sensor-icon-box temp chart-header-icon">
-                                        <i data-lucide="line-chart"></i>
-                                    </div>
-                                    <div>
-                                        <h3 class="chart-title">Suhu &amp; Kelembapan</h3>
-                                        <p class="chart-sub">10 pembacaan terakhir</p>
-                                    </div>
-                                </div>
-                                <div class="chart-legend">
-                                    <span class="legend-item legend-temp"><span class="legend-dot"></span>Suhu</span>
-                                    <span class="legend-item legend-humid"><span class="legend-dot"></span>RH%</span>
-                                </div>
-                            </div>
-                            <div class="chart-wrapper"><canvas id="chartTempHum"></canvas></div>
-                        </div>
+        // ── Fungsi Inti: Fetch Data Real dari ESP32 via HTTP ──
+        async function fetchSensorData() {
+            if (state.isFetching) return;
+            state.isFetching = true;
 
-                        <div class="card p-6">
-                            <div class="chart-header">
-                                <div class="chart-header-left">
-                                    <div class="sensor-icon-box ph chart-header-icon">
-                                        <i data-lucide="trending-up"></i>
-                                    </div>
-                                    <div>
-                                        <h3 class="chart-title">pH Tanah &amp; Reservoir</h3>
-                                        <p class="chart-sub">10 pembacaan terakhir</p>
-                                    </div>
-                                </div>
-                                <div class="chart-legend">
-                                    <span class="legend-item legend-ph"><span class="legend-dot"></span>pH</span>
-                                    <span class="legend-item legend-water"><span class="legend-dot"></span>Level%</span>
-                                </div>
-                            </div>
-                            <div class="chart-wrapper"><canvas id="chartPhWater"></canvas></div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            const startTime = performance.now();
+            let targetUrl = espIpInput.value.trim();
+            if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+                targetUrl = 'http://' + targetUrl;
+            }
+            if (!targetUrl.endsWith('/')) {
+                targetUrl += '/';
+            }
 
-            <!-- ==============================================
-                 SLIDE 2: HALAMAN SUHU & KELEMBAPAN
-                 ============================================== -->
-            <section id="page-temphumid" class="page-slide">
-                <div class="slide-inner">
-                    <div class="page-section-bar">
-                        <h2 class="section-title">
-                            <i data-lucide="thermometer"></i>
-                            Suhu &amp; Kelembapan
-                        </h2>
-                        <span class="badge badge-blue">DHT22 Sensor</span>
-                    </div>
+            // Jika dalam mode simulasi
+            if (state.isDemo) {
+                const simulatedVal = Math.floor(1800 + (Math.random() * 120 - 60));
+                const payload = { soil_moisture: simulatedVal };
+                
+                payloadDisplay.textContent = JSON.stringify(payload, null, 2);
+                payloadTimestamp.textContent = new Date().toLocaleTimeString('id-ID') + ' (Simulasi Demo)';
+                payloadUrlInfo.textContent = `MODE SIMULASI DEMO AKTIF | Target: ${targetUrl}`;
+                
+                connectionStatusChip.className = 'status-chip simulated';
+                connectionStatusText.textContent = 'Demo Mode (Simulasi)';
+                
+                updateDashboard(simulatedVal, 12);
+                state.isFetching = false;
+                return;
+            }
 
-                    <!-- Chart full-width di atas -->
-                    <div class="card p-6 detail-chart-card detail-chart-wide">
-                        <div class="chart-header">
-                            <div class="chart-header-left">
-                                <div class="sensor-icon-box temp chart-header-icon">
-                                    <i data-lucide="line-chart"></i>
-                                </div>
-                                <div>
-                                    <h3 class="chart-title">Grafik Detail Suhu &amp; Kelembapan</h3>
-                                    <p class="chart-sub">Riwayat 10 pembacaan iklim mikro</p>
-                                </div>
-                            </div>
-                            <div class="chart-legend">
-                                <span class="legend-item legend-temp"><span class="legend-dot"></span>Suhu (&deg;C)</span>
-                                <span class="legend-item legend-humid"><span class="legend-dot"></span>RH (%)</span>
-                            </div>
-                        </div>
-                        <div class="chart-wrapper detail-chart-wrapper"><canvas id="chartTempHumDetail"></canvas></div>
-                    </div>
+            try {
+                // Request ke ESP32 dengan timeout 3000ms
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3500);
 
-                    <!-- Stat cards horizontal di bawah chart -->
-                    <div class="detail-stats-row">
-                        <div class="card big-stat-card">
-                            <div class="big-stat-icon temp-bg">
-                                <i data-lucide="thermometer"></i>
-                            </div>
-                            <div class="big-stat-label">Suhu Udara Saat Ini</div>
-                            <div class="big-stat-value-row">
-                                <span id="th-val-temp" class="big-stat-value">28.5</span>
-                                <span class="big-stat-unit">&deg;C</span>
-                            </div>
-                            <span id="th-status-temp" class="badge badge-green">Optimal (24-32&deg;C)</span>
-                            <div class="progress-track big-stat-progress">
-                                <div id="th-bar-temp" class="progress-fill temp"></div>
-                            </div>
-                            <div class="big-stat-range"><span>Min: 24&deg;C</span><span>Max: 34&deg;C</span></div>
-                        </div>
+                const response = await fetch(targetUrl, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                    signal: controller.signal
+                });
 
-                        <div class="card big-stat-card">
-                            <div class="big-stat-icon humid-bg">
-                                <i data-lucide="droplets"></i>
-                            </div>
-                            <div class="big-stat-label">Kelembapan Relatif</div>
-                            <div class="big-stat-value-row">
-                                <span id="th-val-humidity" class="big-stat-value">72</span>
-                                <span class="big-stat-unit">%</span>
-                            </div>
-                            <span id="th-status-humidity" class="badge badge-blue">Lembap (&gt;65%)</span>
-                            <div class="progress-track big-stat-progress">
-                                <div id="th-bar-humidity" class="progress-fill humid"></div>
-                            </div>
-                            <div class="big-stat-range"><span>Min: 50%</span><span>Max: 90%</span></div>
-                        </div>
-                    </div>
+                clearTimeout(timeoutId);
+                const latencyMs = Math.round(performance.now() - startTime);
 
-                    <div class="three-col-grid">
-                        <div class="card insight-card">
-                            <i data-lucide="sun" class="insight-icon sun"></i>
-                            <h4 class="insight-title">Suhu Optimal</h4>
-                            <p class="insight-text">Rentang ideal: <strong>24-30&deg;C</strong>. Saat ini <strong id="th-insight-temp">28.5&deg;C</strong> zona aman.</p>
-                        </div>
-                        <div class="card insight-card">
-                            <i data-lucide="wind" class="insight-icon wind"></i>
-                            <h4 class="insight-title">Kelembapan Udara</h4>
-                            <p class="insight-text">Kelembapan <strong id="th-insight-humidity">72%</strong> mendukung transpirasi tanaman.</p>
-                        </div>
-                        <div class="card insight-card">
-                            <i data-lucide="cloud" class="insight-icon cloud"></i>
-                            <h4 class="insight-title">Indeks Kenyamanan</h4>
-                            <p class="insight-text">Kondisi mikro iklim: <strong id="th-hhi">Baik</strong>. Pertumbuhan vegetatif optimal.</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
+                if (!response.ok) {
+                    throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+                }
 
-            <!-- ==============================================
-                 SLIDE 3: HALAMAN pH TANAH & RESERVOIR
-                 ============================================== -->
-            <section id="page-phwater" class="page-slide">
-                <div class="slide-inner">
-                    <div class="page-section-bar">
-                        <h2 class="section-title">
-                            <i data-lucide="flask-conical"></i>
-                            pH Tanah &amp; Reservoir
-                        </h2>
-                        <span class="badge badge-green">Elektroda &amp; HC-SR04</span>
-                    </div>
+                const data = await response.json();
 
-                    <!-- Chart full-width di atas -->
-                    <div class="card p-6 detail-chart-card detail-chart-wide">
-                        <div class="chart-header">
-                            <div class="chart-header-left">
-                                <div class="sensor-icon-box ph chart-header-icon">
-                                    <i data-lucide="trending-up"></i>
-                                </div>
-                                <div>
-                                    <h3 class="chart-title">Grafik pH Tanah &amp; Level Reservoir</h3>
-                                    <p class="chart-sub">Riwayat 10 pembacaan nutrisi dan penampungan</p>
-                                </div>
-                            </div>
-                            <div class="chart-legend">
-                                <span class="legend-item legend-ph"><span class="legend-dot"></span>pH</span>
-                                <span class="legend-item legend-water"><span class="legend-dot"></span>Level (%)</span>
-                            </div>
-                        </div>
-                        <div class="chart-wrapper detail-chart-wrapper"><canvas id="chartPhWaterDetail"></canvas></div>
-                    </div>
+                // Format yang diharapkan: { "soil_moisture": 1850 }
+                if (data && typeof data.soil_moisture !== 'undefined') {
+                    const moisture = Number(data.soil_moisture);
 
-                    <!-- Stat cards horizontal di bawah chart -->
-                    <div class="detail-stats-row">
-                        <div class="card big-stat-card">
-                            <div class="big-stat-icon ph-bg">
-                                <i data-lucide="flask-conical"></i>
-                            </div>
-                            <div class="big-stat-label">pH Tanah Saat Ini</div>
-                            <div class="big-stat-value-row">
-                                <span id="pw-val-ph" class="big-stat-value">6.5</span>
-                                <span class="big-stat-unit">pH</span>
-                            </div>
-                            <span id="pw-status-ph" class="badge badge-green">Netral (6.0-7.0)</span>
-                            <div class="progress-track big-stat-progress">
-                                <div id="pw-bar-ph" class="progress-fill ph"></div>
-                            </div>
-                            <div class="big-stat-range"><span>Asam: &lt;5.5</span><span>Basa: &gt;7.5</span></div>
-                        </div>
+                    // Update Terminal Inspector
+                    payloadDisplay.textContent = JSON.stringify(data, null, 2);
+                    payloadTimestamp.textContent = new Date().toLocaleTimeString('id-ID') + ` (${latencyMs}ms)`;
+                    payloadUrlInfo.textContent = `URL: ${targetUrl} | Status: 200 OK | Latency: ${latencyMs}ms`;
 
-                        <div class="card big-stat-card">
-                            <div class="big-stat-icon water-bg">
-                                <i data-lucide="waves"></i>
-                            </div>
-                            <div class="big-stat-label">Level Reservoir</div>
-                            <div class="big-stat-value-row">
-                                <span id="pw-val-reservoir" class="big-stat-value">68</span>
-                                <span class="big-stat-unit">%</span>
-                            </div>
-                            <span id="pw-status-reservoir" class="badge badge-green">Aman (&gt;30%)</span>
-                            <div class="progress-track big-stat-progress">
-                                <div id="pw-bar-reservoir" class="progress-fill water"></div>
-                            </div>
-                            <div class="big-stat-range"><span>Kritis: &lt;20%</span><span>Penuh: 100%</span></div>
-                        </div>
-                    </div>
+                    // Update Status Koneksi
+                    connectionStatusChip.className = 'status-chip online';
+                    connectionStatusText.textContent = `Online (${latencyMs}ms)`;
+                    insightNetworkText.innerHTML = `Terhubung stabil ke ESP32 di <strong>${targetUrl}</strong>. Latensi <strong>${latencyMs} ms</strong>.`;
 
-                    <div class="three-col-grid">
-                        <div class="card insight-card acid">
-                            <i data-lucide="flask-conical" class="insight-icon"></i>
-                            <h4 class="insight-title">pH Asam (&lt;6.0)</h4>
-                            <p class="insight-text">Bila masam, tambahkan <strong>dolomit</strong> untuk menaikkan pH ke zona optimal.</p>
-                        </div>
-                        <div class="card insight-card neutral">
-                            <i data-lucide="check-circle" class="insight-icon"></i>
-                            <h4 class="insight-title">pH Netral (6.0-7.0)</h4>
-                            <p class="insight-text">pH <strong id="pw-insight-ph">6.5</strong> sangat baik untuk Padi, Jagung, Cabai.</p>
-                        </div>
-                        <div class="card insight-card reservoir">
-                            <i data-lucide="droplets" class="insight-icon"></i>
-                            <h4 class="insight-title">Reservoir <span id="pw-insight-res">68%</span></h4>
-                            <p class="insight-text">Cadangan air memadai. Irigasi siap otomatis saat dibutuhkan.</p>
-                        </div>
-                    </div>
+                    // Update ke seluruh dashboard
+                    updateDashboard(moisture, latencyMs);
+                } else {
+                    throw new Error("Format JSON tidak valid (harus mengandung properti 'soil_moisture')");
+                }
 
-                </div>
-            </section>
+            } catch (err) {
+                const latencyMs = Math.round(performance.now() - startTime);
+                console.warn('Gagal fetch dari ESP32:', err);
 
-            <!-- ==============================================
-                 SLIDE 4: HALAMAN LOG RIWAYAT TELEMETRI
-                 ============================================== -->
-            <section id="page-history" class="page-slide">
-                <div class="slide-inner">
-                    <div class="page-section-bar">
-                        <h2 class="section-title">
-                            <i data-lucide="scroll-text"></i>
-                            Log Riwayat Telemetri
-                        </h2>
-                        <div class="countdown-chip">
-                            <div class="glow-dot xs"></div>
-                            <span class="countdown-text">Maks. 10 per Halaman</span>
-                        </div>
-                    </div>
+                // Update Status Koneksi ke Offline / Error
+                connectionStatusChip.className = 'status-chip offline';
+                
+                let errMessage = err.name === 'AbortError' ? 'Timeout (ESP32 tidak merespon)' : err.message;
+                if (err.message && err.message.includes('Failed to fetch')) {
+                    errMessage = 'CORS Error / ESP32 Offline di IP tersebut';
+                }
+                connectionStatusText.textContent = 'Offline: ' + (err.name === 'AbortError' ? 'Timeout' : 'Gagal Konek');
 
-                    <!-- Focused Table Card Only -->
-                    <div class="card history-card">
-                        <div class="panel-header history-panel-header">
-                            <div class="panel-header-left">
-                                <div class="panel-icon-box history-icon-box">
-                                    <i data-lucide="scroll-text"></i>
-                                </div>
-                                <div>
-                                    <h3 class="panel-title">Tabel Riwayat Lengkap</h3>
-                                    <p class="panel-sub">Rekam Jejak Pembacaan Sensor &amp; Kontrol ESP32</p>
-                                </div>
-                            </div>
-                            <div class="badge badge-amber">
-                                <i data-lucide="radio"></i>
-                                <span>Live Stream</span>
-                            </div>
-                        </div>
+                payloadTimestamp.textContent = 'Gagal: ' + new Date().toLocaleTimeString('id-ID');
+                payloadDisplay.textContent = `// ERROR saat fetch(${targetUrl}):\n// ${errMessage}\n\n// Tips:\n// 1. Pastikan laptop & ESP32 terhubung di WiFi Hotspot yang sama (192.168.137.x)\n// 2. Pastikan web server ESP32 menambahkan header CORS:\n//    server.sendHeader("Access-Control-Allow-Origin", "*");\n// 3. Klik tombol "Demo Mode" jika ingin melihat tampilan dashboard dengan data tiruan.`;
+                payloadUrlInfo.textContent = `Target: ${targetUrl} | Status: GAGAL`;
+                insightNetworkText.innerHTML = `<span style="color: #c62828;">Koneksi terputus: ${errMessage}</span>. Periksa IP ESP32 atau gunakan Demo Mode.`;
 
-                        <div class="table-responsive">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Waktu</th>
-                                        <th>Suhu / RH</th>
-                                        <th>pH</th>
-                                        <th>Rain / Reservoir</th>
-                                        <th>Servo</th>
-                                        <th>Pompa</th>
-                                        <th>ML Rekomendasi</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="history-table-body">
-                                    <!-- Dynamic rows from script.js -->
-                                </tbody>
-                            </table>
-                        </div>
+            } finally {
+                state.isFetching = false;
+            }
+        }
 
-                        <!-- Pagination Bar -->
-                        <div class="pagination-bar">
-                            <div class="pagination-info" id="pagination-info">Menampilkan 0 dari 0 data</div>
-                            <div class="pagination-buttons">
-                                <button id="btn-prev-page" class="btn-page" onclick="prevHistoryPage()" disabled>
-                                    &larr; Sebelumnya
-                                </button>
-                                <span id="pagination-current" class="pagination-badge">1</span>
-                                <button id="btn-next-page" class="btn-page" onclick="nextHistoryPage()" disabled>
-                                    Berikutnya &rarr;
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+        // ── Auto Refresh Management ──
+        function startAutoFetch() {
+            if (state.intervalId) clearInterval(state.intervalId);
+            state.intervalId = setInterval(fetchSensorData, state.fetchIntervalMs);
+            autoBtnText.textContent = `Auto (${state.fetchIntervalMs/1000}s): ON`;
+            btnToggleAuto.classList.add('btn-primary');
+            btnToggleAuto.classList.remove('btn-outline');
+        }
 
-        </div>
-    </main>
+        function stopAutoFetch() {
+            if (state.intervalId) {
+                clearInterval(state.intervalId);
+                state.intervalId = null;
+            }
+            autoBtnText.textContent = 'Auto: PAUSE';
+            btnToggleAuto.classList.remove('btn-primary');
+            btnToggleAuto.classList.add('btn-outline');
+        }
 
-    <!-- Footer -->
-    <footer class="site-footer">
-        <div class="footer-inner">
-            <div class="footer-left">
-                <i data-lucide="sprout" class="footer-icon"></i>
-                <span>&copy; 2026 Dashboard Fari Si Dukun Tanaman &mdash; IoT ESP32 &amp; Machine Learning</span>
-            </div>
-            <span class="footer-right">Chart.js &middot; Lucide Icons</span>
-        </div>
-    </footer>
+        // ── Event Listeners ──
+        btnFetchNow.addEventListener('click', () => {
+            fetchSensorData();
+        });
 
-</div>
+        btnToggleAuto.addEventListener('click', () => {
+            state.isAuto = !state.isAuto;
+            if (state.isAuto) {
+                startAutoFetch();
+                fetchSensorData();
+            } else {
+                stopAutoFetch();
+            }
+        });
 
-<script src="script.js?v=17"></script>
+        btnToggleDemo.addEventListener('click', () => {
+            state.isDemo = !state.isDemo;
+            if (state.isDemo) {
+                demoBtnText.textContent = 'Demo Mode: ON';
+                btnToggleDemo.classList.add('btn-primary');
+                btnToggleDemo.classList.remove('btn-outline');
+            } else {
+                demoBtnText.textContent = 'Demo Mode: OFF';
+                btnToggleDemo.classList.remove('btn-primary');
+                btnToggleDemo.classList.add('btn-outline');
+            }
+            fetchSensorData();
+        });
+
+        espIpInput.addEventListener('change', () => {
+            let val = espIpInput.value.trim();
+            if (val) {
+                if (!val.startsWith('http://') && !val.startsWith('https://')) {
+                    val = 'http://' + val;
+                }
+                if (!val.endsWith('/')) {
+                    val += '/';
+                }
+                espIpInput.value = val;
+                state.espUrl = val;
+                localStorage.setItem('esp32_ip_url', val);
+                insightIpText.textContent = val.replace('http://', '').replace('/', '');
+                fetchSensorData();
+            }
+        });
+
+        // ── Inisialisasi Pertama Kali ──
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedIp = localStorage.getItem('esp32_ip_url');
+            if (savedIp) {
+                espIpInput.value = savedIp;
+                state.espUrl = savedIp;
+                insightIpText.textContent = savedIp.replace('http://', '').replace('/', '');
+            }
+
+            // Pertama kali load, pasang data awal (1850) agar UI langsung hidup
+            updateDashboard(1850, 0);
+
+            // Jalankan fetch pertama dan auto-refresh
+            fetchSensorData();
+            if (state.isAuto) {
+                startAutoFetch();
+            }
+        });
+    </script>
 </body>
 </html>

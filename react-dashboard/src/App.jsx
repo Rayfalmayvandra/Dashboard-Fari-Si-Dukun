@@ -1,12 +1,31 @@
-// ── App ──────────────────────────────────
-// Main application shell: layout, sidebar, topbar, page routing
+// ══════════════════════════════════════════════════════════════
+// ⚡ APP.JSX — Template Starter Aplikasi
+// ══════════════════════════════════════════════════════════════
+//
+// 🎯 TUGAS PESERTA:
+//    File ini adalah SHELL utama aplikasi. Di sini peserta menghubungkan
+//    komponen layout dan halaman-halaman yang sudah disusun.
+//
+//    File ini SUDAH SIAP JALAN. Peserta hanya perlu menyelesaikan
+//    file halaman di folder components/pages/.
+//
+// 📦 YANG SUDAH DISIAPKAN PANITIA:
+//    ✅ Layout: AnimatedBackground, Sidebar, Topbar, Footer
+//    ✅ Hook: useDashboard (state management lengkap)
+//    ✅ Navigasi sliding antar halaman
+//    ✅ Semua props sudah terhubung ke halaman
+//
+// 💡 PESERTA FOKUS DI: components/pages/ (5 halaman)
+//
+// ══════════════════════════════════════════════════════════════
 
 import { useRef, useEffect } from 'react';
 import useDashboard from './hooks/useDashboard';
-import AnimatedBackground from './components/AnimatedBackground';
-import Sidebar from './components/Sidebar';
-import Topbar from './components/Topbar';
-import Footer from './components/Footer';
+
+// ── Layout (dari Panitia) ────────────────────
+import { AnimatedBackground, Sidebar, Topbar, Footer } from './components/layout';
+
+// ── Pages (TUGAS PESERTA) ────────────────────
 import HomePage from './components/pages/HomePage';
 import TelemetriPage from './components/pages/TelemetriPage';
 import TempHumidPage from './components/pages/TempHumidPage';
@@ -42,6 +61,7 @@ export default function App() {
     return () => clearTimeout(slideTimeoutRef.current);
   }, [dashboard.currentPageIndex]);
 
+  // ── Halaman-halaman yang perlu disusun peserta ──
   const pages = [
     {
       id: 'home',

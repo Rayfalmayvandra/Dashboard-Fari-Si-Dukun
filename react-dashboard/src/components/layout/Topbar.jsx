@@ -1,8 +1,10 @@
 // ── Topbar ──────────────────────────────
+// DISEDIAKAN OLEH PANITIA LOMBA
 // Top navigation bar with page title, ESP32 status, and real-time clock
 
 import { useState, useEffect } from 'react';
 import { Menu, Clock } from 'lucide-react';
+import { StatusIndicator } from '../ui';
 
 export default function Topbar({ pageTitle, pageSub, toggleSidebar }) {
   const [clock, setClock] = useState('00:00:00');
@@ -34,10 +36,7 @@ export default function Topbar({ pageTitle, pageSub, toggleSidebar }) {
       </div>
       <div className="topbar-right">
         <div className="topbar-chip">
-          <div className="status-indicator">
-            <span className="status-ping"></span>
-            <span className="status-dot"></span>
-          </div>
+          <StatusIndicator variant="ping" />
           <span className="topbar-chip-text">ESP32</span>
         </div>
         <div className="topbar-chip">
